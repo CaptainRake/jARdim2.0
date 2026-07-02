@@ -10,7 +10,7 @@ import MapAvatar from '../components/MapAvatar';
 import PollenRoute from '../components/PollenRoute';
 import GuideDialog from '../components/GuideDialog';
 
-const fallbackPosition = [-29.6888814, -53.7977177];
+const fallbackPosition = [-29.7169792, -53.7294990];
 
 function FollowUser({ position }) {
   const map = useMap();
