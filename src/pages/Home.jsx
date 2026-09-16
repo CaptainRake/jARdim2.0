@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMap,
+} from 'react-leaflet';
 
 import { encounters } from '../data/encounters';
 import { pollenRoute } from '../data/pollen';
@@ -10,13 +15,16 @@ import MapAvatar from '../components/MapAvatar';
 import PollenRoute from '../components/PollenRoute';
 import GuideDialog from '../components/GuideDialog';
 
-const fallbackPosition = [-29.7169792, -53.7294990];
+import { usePlayerStore } from '../stores/playerStore';
+import { useGPS } from '../hooks/useGPS';
 
 function FollowUser({ position }) {
   const map = useMap();
 
   useEffect(() => {
-    if (position) map.setView(position, 18);
+    if (position) {
+      map.setView(position, 18);
+    }
   }, [position, map]);
 
   return null;
@@ -24,15 +32,19 @@ function FollowUser({ position }) {
 
 function calcularDistancia(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
+
   const phi1 = (lat1 * Math.PI) / 180;
   const phi2 = (lat2 * Math.PI) / 180;
+
   const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
   const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
 
   const a =
     Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) *
-    Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    Math.cos(phi1) *
+      Math.cos(phi2) *
+      Math.sin(deltaLambda / 2) *
+      Math.sin(deltaLambda / 2);
 
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
@@ -40,42 +52,27 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
 export default function Home() {
   const navigate = useNavigate();
 
-  const [userPosition, setUserPosition] = useState(fallbackPosition);
+  useGPS();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [animalIconVisible, setAnimalIconVisible] = useState(false);
+
+  const latitude = usePlayerStore((state) => state.latitude);
+  const longitude = usePlayerStore((state) => state.longitude);
+
+  const userPosition = [latitude, longitude];
 
   const animalIcon = L.divIcon({
     className: 'animal-map-icon',
     html: `
-        <div class="encounter-marker">
+      <div class="encounter-marker">
         <div class="encounter-pulse"></div>
         <div class="encounter-symbol">🐾</div>
-        </div>
+      </div>
     `,
     iconSize: [70, 70],
     iconAnchor: [35, 35],
-    });
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-
-    const watcher = navigator.geolocation.watchPosition(
-      (position) => {
-        setUserPosition([
-          position.coords.latitude,
-          position.coords.longitude,
-        ]);
-      },
-      (error) => console.error(error),
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000,
-      }
-    );
-
-    return () => navigator.geolocation.clearWatch(watcher);
-  }, []);
+  });
 
   const pollenVisivel = pollenRoute.filter((point) => {
     const distance = calcularDistancia(
@@ -107,16 +104,22 @@ export default function Home() {
 
   return (
     <main className="map-screen">
-      <MapContainer center={userPosition} zoom={18} className="map">
+      <MapContainer
+        center={userPosition}
+        zoom={18}
+        className="map"
+      >
         <TileLayer
           attribution="&copy; OpenStreetMap"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         <FollowUser position={userPosition} />
+
         <PollenRoute points={pollenVisivel} />
+
         <MapAvatar position={userPosition} />
-        
+
         {animalIconVisible && encontroProximo && (
           <Marker
             position={encontroProximo.position}
@@ -128,16 +131,26 @@ export default function Home() {
         )}
       </MapContainer>
 
-      <button className="bag-button" onClick={() => navigate('/backpack')}>
+      <button
+        className="bag-button"
+        onClick={() => navigate('/backpack')}
+      >
         🎒
       </button>
 
-        <button className="challenge-button" onClick={() => navigate('/challenges')}>
+      <button
+        className="challenge-button"
+        onClick={() => navigate('/challenges')}
+      >
         ⭐
-        </button>
-        
-      <button className="player-card" onClick={() => navigate('/profile')}>
+      </button>
+
+      <button
+        className="player-card"
+        onClick={() => navigate('/profile')}
+      >
         <div className="avatar-dot" />
+
         <div>
           <strong>Jogador123</strong>
           <span>Nível 1</span>

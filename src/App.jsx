@@ -10,6 +10,7 @@ import Guide from './pages/Guide';
 import Backpack from './pages/Backpack';
 import Challenges from './pages/Challenges';
 import Profile from './pages/Profile';
+import MapTest from './pages/MapTest';
 
 export default function App() {
   return (
@@ -17,13 +18,14 @@ export default function App() {
       <Route path="/" element={<Splash />} />
       <Route path="/enter" element={<Enter />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/home" element={<Home />} />
+      <Route path="/home" element={<MapTest />} />
       <Route path="/ar" element={<AR />} />
       <Route path="/discovery" element={<Discovery />} />
       <Route path="/guide" element={<Guide />} />
       <Route path="/backpack" element={<Backpack />} />
       <Route path="/challenges" element={<Challenges />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/home-old" element={<Home />} />
     </Routes>
   );
 }
