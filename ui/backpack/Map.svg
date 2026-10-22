@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 256 299.134">
+  <defs>
+    <style>
+      .cls-1{fill:#efebc3}
+      .cls-2{fill:#e1cfa0}
+      .cls-3{fill:#788e64}
+      .cls-4{fill:#425432}
+      .cls-5{fill:none;stroke:#425432;stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+      .cls-6{fill:#eeac31}
+      .cls-7{fill:#3e5171}
+      .cls-8{font-family:&apos;Source Sans 3&apos;;font-size:36;fill:#000000;text-anchor:middle}
+    </style>
+    <filter id="filter-1" filterUnits="userSpaceOnUse" x="-2" y="-2" width="260" height="260" data-vc-blend="multiply" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="4"/><feOffset dx="8" dy="8" result="shadow"/><feFlood flood-color="#000000" flood-opacity="0.75"/><feComposite in2="shadow" operator="in" result="paint"/><feMerge><feMergeNode in="paint"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <title>Logo01.ai</title>
+  <g id="Asset_14" data-name="Asset 14">
+    <g>
+      <g filter="url(#filter-1)">
+        <g>
+          <path d="M29 52.625 L92 29 L92 200 L29 223.625 Z" class="cls-1"/>
+          <path d="M164 236 L92 209 L92 20 L164 47 Z" class="cls-2"/>
+          <path d="M164 56 L227 32.375 L227 137 L227 203.375 L164 227 Z" class="cls-1"/>
+          <path d="M20 47 L92 20 L92 29 L29 52.625 L29 223.625 L92 200 L92 209 L20 236 L20 227 L20 56 Z" class="cls-3"/>
+          <path d="M164 56 L92 29 L92 20 L164 47 Z" class="cls-4"/>
+          <path d="M164 236 L92 209 L92 200 L164 227 Z" class="cls-4"/>
+          <path d="M47 101 L60.5 74 L74 101 Z" class="cls-4"/>
+          <path d="M114.5 101 L123.5 83 L132.5 101 Z" class="cls-3"/>
+          <path d="M123.5 200 L137 173 L150.5 200 Z" class="cls-3"/>
+          <path d="M128 92 L137 74 L146 92 Z" class="cls-4"/>
+          <path d="M67.278 167.496 C79.024 146 48.823 131.513 71.606 114.946 C95.276 97.734 116.909 134.913 123.291 143.423 C150.291 179.423 203.707 161.032 191 137 C183.351 122.533 156.791 109.104 191 92" class="cls-5"/>
+          <path d="M54.991 173.991 C56.313 172.67 58.456 172.67 59.778 173.991 L65 179.213 L70.222 173.991 C71.544 172.67 73.687 172.67 75.009 173.991 C76.33 175.313 76.33 177.456 75.009 178.778 L69.787 184 L75.009 189.222 C76.33 190.544 76.33 192.687 75.009 194.009 C73.687 195.33 71.544 195.33 70.222 194.009 L65 188.787 L59.778 194.009 C58.456 195.33 56.313 195.33 54.991 194.009 C53.67 192.687 53.67 190.544 54.991 189.222 L60.213 184 L54.991 178.778 C53.67 177.456 53.67 175.313 54.991 173.991 Z" class="cls-6"/>
+          <path d="M227 137 L227 203.375 L164 227 C164 227 173 182 200 182 C227 182 227 137 227 137 Z" class="cls-7"/>
+          <path d="M164 47 L236 20 L236 29 L236 200 L236 209 L164 236 L164 227 L227 203.375 L227 137 L227 32.375 L164 56 Z" class="cls-3"/>
+          <path d="M197.419 69.721 C199.743 66.51 203.213 64.993 206.647 65 C210.081 64.993 213.55 66.51 215.875 69.721 C217.262 71.636 218.196 74.395 217.965 76.777 C217.75 78.999 216.713 81.098 215.663 83.035 C213.984 86.134 211.939 89.062 209.777 91.842 C208.753 93.16 207.715 94.462 206.647 95.745 C205.579 94.462 204.541 93.16 203.516 91.842 C201.355 89.062 199.31 86.134 197.631 83.035 C196.581 81.098 195.544 78.999 195.329 76.777 C195.098 74.395 196.032 71.636 197.419 69.721 Z M206.647 69.78 C202.964 69.782 200.019 72.817 200.112 76.482 C200.201 80.036 203.111 82.856 206.647 82.854 L206.647 82.854 C210.182 82.856 213.093 80.036 213.182 76.482 C213.274 72.817 210.33 69.782 206.647 69.78 Z" class="cls-6"/>
+        </g>
+      </g>
+      <text transform="matrix(1 0 0 1 126.513 287.398)" x="0" y="0" xml:space="preserve" class="cls-8"><tspan x="0" y="0">MAPA</tspan></text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 307.483 356.562">
+  <defs>
+    <style>
+      .cls-1{fill:#f6f6f6}
+      .cls-2{fill:#fffff5}
+      .cls-3{fill:#e5e5e5}
+      .cls-4{fill:#ededed}
+      .cls-5{fill:#68341f}
+      .cls-6{font-family:&apos;Source Sans 3&apos;;font-size:12;fill:#e1cfa0;text-anchor:middle}
+      .cls-7{font-family:&apos;Source Sans 3&apos;;font-size:36;fill:#000000;text-anchor:middle}
+    </style>
+    <filter id="filter-1" filterUnits="userSpaceOnUse" x="-2" y="-2" width="311.483" height="317.428" data-vc-blend="multiply" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="4"/><feOffset dx="8" dy="8" result="shadow"/><feFlood flood-color="#000000" flood-opacity="0.75"/><feComposite in2="shadow" operator="in" result="paint"/><feMerge><feMergeNode in="paint"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <title>Logo01.ai</title>
+  <g id="Asset_15" data-name="Asset 15">
+    <g>
+      <g filter="url(#filter-1)">
+        <g>
+          <path d="M66.34 27.044 L241.699 20 L251.091 253.811 L75.733 260.856 Z" class="cls-1"/>
+          <path d="M148.435 46.166 L287.483 108.03 L204.997 293.428 L65.949 231.563 Z" class="cls-2"/>
+          <path d="M121.77 46.8 L257.716 49.167 L254.56 230.428 L118.614 228.061 Z" class="cls-3"/>
+          <path d="M102.539 99.89 L212.716 137.525 L162.535 284.428 L52.358 246.792 Z" class="cls-4"/>
+          <path d="M71.103 59.428 L203.716 89.437 L163.704 266.254 L31.091 236.245 Z" class="cls-1"/>
+          <path d="M65.209 26.512 L20.1 224.989 C19.605 227.168 20.991 229.33 23.177 229.79 L193.498 265.647 C195.635 266.097 197.739 264.749 198.223 262.619 L243.331 64.142 C243.826 61.963 242.441 59.801 240.255 59.341 L69.933 23.484 C67.796 23.034 65.693 24.382 65.209 26.512 Z" class="cls-5"/>
+          <text transform="matrix(2.742 0.572 -0.572 2.742 133.52 135.911)" x="1.2" y="0" xml:space="preserve" class="cls-6"><tspan x="1.2" y="0">GUIA DE </tspan><tspan x="0" y="14.4">CAMPO</tspan></text>
+        </g>
+      </g>
+      <text transform="matrix(1 0 0 1 153.741 344.826)" x="0" y="0" xml:space="preserve" class="cls-7"><tspan x="0" y="0">GUIA DE CAMPO</tspan></text>
+    </g>
+  </g>
+</svg>
