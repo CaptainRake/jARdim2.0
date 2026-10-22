@@ -10,7 +10,7 @@ import Guide from './pages/Guide';
 import Backpack from './pages/Backpack';
 import Challenges from './pages/Challenges';
 import Profile from './pages/Profile';
-import MapTest from './pages/MapTest';
+import Game from './pages/Game';
 
 export default function App() {
   return (
@@ -18,7 +18,7 @@ export default function App() {
       <Route path="/" element={<Splash />} />
       <Route path="/enter" element={<Enter />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/home" element={<MapTest />} />
+      <Route path="/home" element={<Game />} />
       <Route path="/ar" element={<AR />} />
       <Route path="/discovery" element={<Discovery />} />
       <Route path="/guide" element={<Guide />} />
