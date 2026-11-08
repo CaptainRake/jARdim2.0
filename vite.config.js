@@ -5,8 +5,5 @@ export default defineConfig({
   plugins: [react()],
 
   base: '/jARdim2.0/',
-
-  optimizeDeps: {
-    exclude: ['maplibre-gl'],
-  },
+  
 });

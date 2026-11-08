@@ -59,7 +59,7 @@ export default function Enter() {
       <button
         className="login-hitbox login-hitbox-guest"
         aria-label="Entrar como convidado"
-        onClick={() => navigate('/home')}
+        onClick={() => navigate('/backpack-select')}
       />
 
     </main>

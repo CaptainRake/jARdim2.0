@@ -478,6 +478,32 @@ body {
 }
 
 /* ==============================
+   TELA PRINCIPAL / MAPA
+   ============================== */
+
+.game-screen {
+  position: relative;
+
+  width: 100%;
+  height: 100dvh;
+
+  overflow: hidden;
+}
+
+/* Mantém o MapLibre ocupando toda a tela
+   e abaixo da interface */
+
+.game-screen .maplibregl-map {
+  position: absolute;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  z-index: 0;
+}
+
+/* ==============================
    HUD RE:BROTA
    ============================== */
 
@@ -485,7 +511,7 @@ body {
   position: absolute;
   inset: 0;
 
-  z-index: 30;
+  z-index: 1000;
 
   pointer-events: none;
 }
@@ -498,8 +524,8 @@ body {
 .hud-settings {
   position: absolute;
 
-  top: 18px;
-  right: 18px;
+  top: calc(18px + env(safe-area-inset-top));
+  right: calc(18px + env(safe-area-inset-right));
 
   width: 46px;
   height: 46px;
@@ -529,8 +555,8 @@ body {
 .hud-profile {
   position: absolute;
 
-  left: 18px;
-  bottom: 22px;
+  left: calc(18px + env(safe-area-inset-left));
+  bottom: calc(22px + env(safe-area-inset-bottom));
 
   width: 135px;
 
@@ -638,8 +664,8 @@ body {
 .hud-actions {
   position: absolute;
 
-  right: 18px;
-  bottom: 20px;
+  right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(20px + env(safe-area-inset-bottom));
 
   display: flex;
   flex-direction: column;
@@ -687,4 +713,154 @@ body {
 .hud-backpack {
   width: 68px;
   height: 68px;
+}
+
+/* ==============================
+   MOCHILA RE:BROTA
+   ============================== */
+
+.backpack-screen {
+  position: relative;
+
+  width: 100%;
+  height: 100dvh;
+
+  overflow: hidden;
+
+  background: #347f18;
+}
+
+
+/* FUNDO */
+
+.backpack-background {
+  position: absolute;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+
+  pointer-events: none;
+  user-select: none;
+
+  z-index: 0;
+}
+
+
+/* ==============================
+   ITENS DA MOCHILA
+   ============================== */
+
+.backpack-item {
+  position: absolute;
+
+  z-index: 2;
+
+  padding: 0;
+
+  border: none;
+  background: transparent;
+
+  cursor: pointer;
+
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backpack-item img {
+  display: block;
+
+  width: 100%;
+  height: auto;
+
+  max-width: none;
+
+  pointer-events: none;
+}
+
+.backpack-item span {
+  white-space: nowrap;
+
+  text-shadow:
+    0 1px 1px
+    rgba(255, 255, 255, 0.5);
+}
+
+.backpack-item:active {
+  transform: scale(0.92);
+}
+
+.backpack-map {
+  top: 27%;
+  left: 24%;
+
+  width: 88px;
+}
+
+.backpack-guide {
+  top: 26%;
+  right: 23%;
+
+  width: 92px;
+}
+
+.backpack-badges {
+  top: 46%;
+  left: 50%;
+
+  width: 98px;
+
+  transform: translateX(-50%);
+}
+
+.backpack-id {
+  top: 64%;
+  right: 27%;
+
+  width: 72px;
+}
+
+/* ==============================
+   BOTÃO FECHAR
+   ============================== */
+
+.backpack-close {
+  position: absolute;
+
+  z-index: 3;
+
+  left: 50%;
+  bottom:
+    calc(
+      18px +
+      env(safe-area-inset-bottom)
+    );
+
+  transform: translateX(-50%);
+
+  width: 48px;
+  height: 48px;
+
+  padding: 0;
+
+  border: none;
+  background: transparent;
+
+  cursor: pointer;
+
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backpack-close img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+}
+
+.backpack-close:active {
+  transform:
+    translateX(-50%)
+    scale(0.9);
 }

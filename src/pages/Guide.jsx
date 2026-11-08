@@ -1,7 +1,14 @@
 import { useNavigate } from 'react-router-dom';
+import { useProgressStore } from '../stores/progressStore';
 
 export default function Guide() {
   const navigate = useNavigate();
+
+  const markGuideRead =
+    useProgressStore(
+      (state) =>
+        state.markGuideRead
+    );
 
   return (
     <main className="screen guide-page">

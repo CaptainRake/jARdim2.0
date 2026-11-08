@@ -1,7 +1,20 @@
 import { useNavigate } from 'react-router-dom';
+import { useProgressStore } from '../stores/progressStore';
 
 export default function AR() {
   const navigate = useNavigate();
+
+  const activeEncounterId =
+    useProgressStore(
+      (state) =>
+        state.activeEncounterId
+    );
+
+  const registerDiscovery =
+    useProgressStore(
+      (state) =>
+        state.registerDiscovery
+    );
 
   return (
     <main className="ar-page">

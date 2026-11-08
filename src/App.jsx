@@ -11,6 +11,8 @@ import Backpack from './pages/Backpack';
 import Challenges from './pages/Challenges';
 import Profile from './pages/Profile';
 import Game from './pages/Game';
+import BackpackSelect from './pages/BackpackSelect';
+import Intro from './pages/Intro';
 
 export default function App() {
   return (
@@ -26,6 +28,8 @@ export default function App() {
       <Route path="/challenges" element={<Challenges />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/home-old" element={<Home />} />
+      <Route path="/backpack-select" element={<BackpackSelect />} />
+      <Route path="/intro" element={<Intro />} />
     </Routes>
   );
 }
