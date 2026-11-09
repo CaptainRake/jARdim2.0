@@ -9,6 +9,7 @@ export const useOnboardingStore = create(
       hasChosenBackpack: false,
       hasSeenIntro: false,
       hasCompletedTutorial: false,
+      hasCompletedOnboarding: false,
 
       tutorialStep: 0,
 
@@ -23,6 +24,12 @@ export const useOnboardingStore = create(
           hasSeenIntro: true,
         }),
 
+      startTutorial: () =>
+        set({
+          tutorialStep: 0,
+          hasCompletedTutorial: false,
+        }),
+
       nextTutorialStep: () =>
         set((state) => ({
           tutorialStep:
@@ -32,6 +39,7 @@ export const useOnboardingStore = create(
       completeTutorial: () =>
         set({
           hasCompletedTutorial: true,
+          hasCompletedOnboarding: true,
           tutorialStep: 0,
         }),
 
@@ -41,6 +49,7 @@ export const useOnboardingStore = create(
           hasChosenBackpack: false,
           hasSeenIntro: false,
           hasCompletedTutorial: false,
+          hasCompletedOnboarding: false,
           tutorialStep: 0,
         }),
     }),

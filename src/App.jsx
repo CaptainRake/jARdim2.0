@@ -13,6 +13,7 @@ import Profile from './pages/Profile';
 import Game from './pages/Game';
 import BackpackSelect from './pages/BackpackSelect';
 import Intro from './pages/Intro';
+import Shop from './pages/Shop';
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/home-old" element={<Home />} />
       <Route path="/backpack-select" element={<BackpackSelect />} />
       <Route path="/intro" element={<Intro />} />
+      <Route path="/shop" element={<Shop />} />
     </Routes>
   );
 }

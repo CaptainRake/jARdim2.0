@@ -10,21 +10,23 @@ export default function Game() {
 
   const hasCompletedTutorial =
     useOnboardingStore(
-      (state) =>
-        state.hasCompletedTutorial
+      (state) => state.hasCompletedTutorial
     );
 
   return (
     <main className="game-screen">
-
       <GameMap3D />
+
+      <div
+        className="tutorial-map-anchor"
+        data-tutorial="map-center"
+      />
 
       <GameHUD />
 
       {!hasCompletedTutorial && (
         <TutorialOverlay />
       )}
-
     </main>
   );
 }

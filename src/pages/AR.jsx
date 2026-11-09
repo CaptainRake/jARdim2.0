@@ -13,6 +13,9 @@ import {
   useProgressStore,
 } from '../stores/progressStore';
 
+import {
+  useEncounterStore,
+} from '../stores/encounterStore';
 
 export default function AR() {
   const navigate =
@@ -96,15 +99,18 @@ export default function AR() {
   */
 
   function handleRegister() {
-    registerDiscovery(
-      encounter.id
-    );
+    registerDiscovery(encounter.id);
 
-    navigate(
-      `/discovery?animal=${encounter.id}`
-    );
+    endEncounter(encounter.id);
+
+    navigate(`/guide?animal=${encounter.id}`);
   }
 
+  const endEncounter =
+  useEncounterStore(
+    (state) =>
+      state.endEncounter
+  );
 
   return (
     <main
@@ -237,76 +243,71 @@ export default function AR() {
           Ver em AR
         </button>
 
+        <button
+          onClick={handleRegister}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: '55px',
+            transform: 'translateX(-50%)',
+
+            zIndex: 50,
+
+            minWidth: '180px',
+            minHeight: '46px',
+
+            padding: '12px 20px',
+
+            border: 'none',
+            borderRadius: '999px',
+
+            background: '#ffffff',
+            color: '#222222',
+
+            fontSize: '15px',
+            fontWeight: '700',
+
+            cursor: 'pointer',
+          }}
+        >
+          Registrar no guia
+        </button>
+
       </model-viewer>
-
-
-      {/*
-        ===================================
-        VOLTAR
-        ===================================
-      */}
 
       <button
         className="ar-back"
-
         onClick={() =>
           navigate('/home')
         }
-
+        aria-label="Voltar ao mapa"
         style={{
-          zIndex:
-            100,
+          position: 'absolute',
+          top: '16px',
+          left: '16px',
+
+          width: '48px',
+          height: '48px',
+
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+
+          border: 'none',
+          borderRadius: '50%',
+
+          background: 'rgba(255,255,255,0.92)',
+          color: '#222',
+
+          fontSize: '26px',
+          lineHeight: 1,
+
+          zIndex: 1000,
+
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}
       >
         ←
-      </button>
-
-
-      {/*
-        ===================================
-        GUIA
-        ===================================
-      */}
-
-      <button
-        className="ar-roll"
-
-        onClick={() =>
-          navigate('/guide')
-        }
-
-        style={{
-          zIndex:
-            100,
-        }}
-      >
-        🖼️
-      </button>
-
-
-      {/*
-        ===================================
-        REGISTRAR
-        ===================================
-      */}
-
-      <button
-        className="ar-shutter"
-
-        onClick={
-          handleRegister
-        }
-
-        aria-label={
-          `Registrar ${encounter.name}`
-        }
-
-        style={{
-          zIndex:
-            100,
-        }}
-      >
-        📷
       </button>
 
     </main>

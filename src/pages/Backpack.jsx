@@ -1,89 +1,122 @@
 import { useNavigate } from 'react-router-dom';
 
+import { backpacks } from '../data/backpacks';
+import { useOnboardingStore } from '../stores/onboardingStore';
+
 export default function Backpack() {
   const navigate = useNavigate();
 
-  const asset = (name) =>
-    `${import.meta.env.BASE_URL}ui/backpack/${name}`;
+  const selectedBackpack =
+    useOnboardingStore(
+      (state) =>
+        state.selectedBackpack
+    );
+
+  const backpack =
+    backpacks.find(
+      (item) =>
+        item.id === selectedBackpack
+    ) ?? backpacks[0];
 
   return (
-    <main className="backpack-screen">
+    <main className="backpack-page">
 
-      {/* FUNDO DA MOCHILA */}
-
+      {/* FUNDO DA MOCHILA SELECIONADA */}
       <img
-        src={asset('Backpack_BG_OrangeYellow.svg')}
         className="backpack-background"
-        alt=""
+        src={
+          `${import.meta.env.BASE_URL}ui/backpack/${backpack.background}`
+        }
+        alt={`Mochila ${backpack.name}`}
       />
 
 
-      {/* MAPA */}
-
+      {/* FECHAR */}
       <button
-        className="backpack-item backpack-map"
-        onClick={() => navigate('/home')}
-        aria-label="Mapa"
+        type="button"
+        className="backpack-close"
+        onClick={() =>
+          navigate('/home')
+        }
+        aria-label="Fechar mochila"
       >
         <img
-          src={asset('Map.svg')}
+          src={
+            `${import.meta.env.BASE_URL}ui/backpack/CloseBackpack.svg`
+          }
           alt=""
+        />
+      </button>
+
+
+      {/* MAPA */}
+      <button
+        type="button"
+        className="backpack-map backpack-item"
+        onClick={() =>
+          navigate('/home')
+        }
+        aria-label="Abrir mapa"
+      >
+        <img
+          src={
+            `${import.meta.env.BASE_URL}ui/backpack/Map.svg`
+          }
+          alt="Mapa"
         />
       </button>
 
 
       {/* GUIA DE CAMPO */}
-
       <button
-        className="backpack-item backpack-guide"
-        onClick={() => navigate('/guide')}
-        aria-label="Guia de Campo"
+        type="button"
+        className="backpack-guide backpack-item"
+        onClick={() =>
+          navigate('/guide')
+        }
+        aria-label="Abrir Guia de Campo"
       >
         <img
-          src={asset('FieldGuide.svg')}
-          alt=""
+          src={
+            `${import.meta.env.BASE_URL}ui/backpack/FieldGuide.svg`
+          }
+          alt="Guia de Campo"
         />
       </button>
 
 
       {/* DISTINTIVOS */}
-
       <button
-        className="backpack-item backpack-badges"
-        onClick={() => navigate('/challenges')}
-        aria-label="Distintivos"
+        type="button"
+        className="backpack-badges backpack-item"
+        onClick={() =>
+          navigate('/challenges')
+        }
+        aria-label="Abrir distintivos"
       >
         <img
-          src={asset('BadgesButton.svg')}
-          alt=""
+          src={
+            `${import.meta.env.BASE_URL}ui/backpack/BadgesButton.svg`
+          }
+          alt="Distintivos"
         />
       </button>
 
 
-      {/* ID */}
-
+      {/* IDENTIFICAÇÃO */}
       <button
-        className="backpack-item backpack-id"
-        onClick={() => navigate('/profile')}
-        aria-label="Identificação"
+        type="button"
+        className="backpack-id backpack-item"
+        onClick={() =>
+          navigate('/profile')
+        }
+        aria-label="Abrir identificação"
       >
         <img
-          src={asset('ID.svg')}
-          alt=""
-        />
-      </button>
-
-
-      {/* FECHAR */}
-
-      <button
-        className="backpack-close"
-        onClick={() => navigate('/home')}
-        aria-label="Fechar mochila"
-      >
-        <img
-          src={asset('CloseBackpack.svg')}
-          alt=""
+          src={
+            `${import.meta.env.BASE_URL}ui/backpack/ID.svg`
+          }
+          alt="Identificação"
         />
       </button>
 

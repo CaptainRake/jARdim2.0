@@ -14,13 +14,8 @@ export const encounters = [
     arScale: 1,
 
     rarity: 'common',
-    spawnChance: 0.6,
 
-    // posição relativa ao jogador
-    spawnDistance: 18,
-    spawnBearing: 0,
-
-    revealRadius: 40,
+    weight: 50,
   },
 
   {
@@ -36,12 +31,8 @@ export const encounters = [
     arScale: 1,
 
     rarity: 'uncommon',
-    spawnChance: 0.3,
 
-    spawnDistance: 22,
-    spawnBearing: 120,
-
-    revealRadius: 40,
+    weight: 30,
   },
 
   {
@@ -57,11 +48,7 @@ export const encounters = [
     arScale: 1,
 
     rarity: 'rare',
-    spawnChance: 0.1,
 
-    spawnDistance: 26,
-    spawnBearing: 240,
-
-    revealRadius: 40,
+    weight: 20,
   },
 ];

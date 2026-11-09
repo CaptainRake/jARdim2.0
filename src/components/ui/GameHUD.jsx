@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom';
+import { backpacks } from '../../data/backpacks';
+import { useOnboardingStore } from '../../stores/onboardingStore';
 
 export default function GameHUD() {
   const navigate = useNavigate();
@@ -15,6 +17,18 @@ export default function GameHUD() {
     100
   );
 
+  const selectedBackpack =
+    useOnboardingStore(
+      (state) =>
+        state.selectedBackpack
+    );
+
+  const backpack =
+    backpacks.find(
+      (item) =>
+        item.id === selectedBackpack
+    ) ?? backpacks[0];
+
   return (
     <div className="game-hud">
 
@@ -22,6 +36,7 @@ export default function GameHUD() {
 
       <button
         className="hud-settings"
+        data-tutorial="settings"
         aria-label="Configurações"
         onClick={() =>
           console.log('Configurações')
@@ -38,6 +53,7 @@ export default function GameHUD() {
 
       <button
         className="hud-profile"
+        data-tutorial="profile"
         onClick={() =>
           navigate('/profile')
         }
@@ -80,9 +96,10 @@ export default function GameHUD() {
 
         <button
           className="hud-action-button"
-          aria-label="Expedição"
+          data-tutorial="expedition"
+          aria-label="Loja de Campo"
           onClick={() =>
-            console.log('Expedição')
+            navigate('/shop')
           }
         >
           <img
@@ -96,6 +113,7 @@ export default function GameHUD() {
 
         <button
           className="hud-action-button"
+          data-tutorial="missions"
           aria-label="Missões"
           onClick={() =>
             navigate('/challenges')
@@ -112,14 +130,17 @@ export default function GameHUD() {
 
         <button
           className="hud-action-button hud-backpack"
+          data-tutorial="backpack"
           aria-label="Mochila"
           onClick={() =>
             navigate('/backpack')
           }
         >
           <img
-            src={`${import.meta.env.BASE_URL}ui/hud/Backpack_OrangeYellow.svg`}
-            alt=""
+            src={
+              `${import.meta.env.BASE_URL}ui/hud/${backpack.icon}`
+            }
+            alt={`Mochila ${backpack.name}`}
           />
         </button>
 

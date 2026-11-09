@@ -29,6 +29,82 @@ import {
   useProgressStore,
 } from '../../stores/progressStore';
 
+import {
+  useEncounterStore,
+} from '../../stores/encounterStore';
+
+
+/*
+  =========================================================
+  CONFIGURAÇÃO DO SPAWN
+  =========================================================
+
+  VALORES DO JOGO:
+*/
+
+const MIN_DISTANCE_FOR_SPAWN = 10;
+
+/*
+  2 minutos
+*/
+
+const SPAWN_COOLDOWN =
+  10 * 1000;
+
+
+/*
+  Depois que estiver elegível,
+  faz uma nova tentativa a cada
+  20 metros.
+*/
+
+const DISTANCE_BETWEEN_ROLLS = 5;
+
+
+/*
+  Chance de realmente surgir
+  um encontro quando houver
+  uma tentativa.
+*/
+
+const ENCOUNTER_CHANCE = 1;
+
+
+/*
+  Animal nasce entre
+  20 e 30 metros do player.
+*/
+
+const MIN_SPAWN_DISTANCE = 20;
+const MAX_SPAWN_DISTANCE = 30;
+
+
+/*
+  Distâncias de gameplay.
+*/
+
+const REVEAL_RADIUS = 40;
+
+const INTERACTION_RADIUS = 18;
+
+const DESPAWN_RADIUS = 80;
+
+
+/*
+  Ignora pequenas oscilações
+  do GPS.
+*/
+
+const MIN_VALID_GPS_MOVEMENT = 3;
+
+const MAX_VALID_GPS_MOVEMENT = 100;
+
+
+/*
+  =========================================================
+  DISTÂNCIA
+  =========================================================
+*/
 
 function calcularDistancia(
   lat1,
@@ -39,10 +115,12 @@ function calcularDistancia(
   const R = 6371000;
 
   const p1 =
-    (lat1 * Math.PI) / 180;
+    (lat1 * Math.PI) /
+    180;
 
   const p2 =
-    (lat2 * Math.PI) / 180;
+    (lat2 * Math.PI) /
+    180;
 
   const deltaLat =
     ((lat2 - lat1) *
@@ -58,29 +136,34 @@ function calcularDistancia(
     Math.sin(
       deltaLat / 2
     ) ** 2 +
+
     Math.cos(p1) *
       Math.cos(p2) *
+
       Math.sin(
         deltaLon / 2
       ) ** 2;
+
 
   const c =
     2 *
     Math.atan2(
       Math.sqrt(a),
+
       Math.sqrt(
         1 - a
       )
     );
+
 
   return R * c;
 }
 
 
 /*
-  Retorna uma coordenada
-  a determinada distância
-  e direção do jogador.
+  =========================================================
+  COORDENADA A X METROS DO PLAYER
+  =========================================================
 */
 
 function calcularDestino(
@@ -112,14 +195,17 @@ function calcularDestino(
       Math.PI
     ) / 180;
 
+
   const phi2 =
     Math.asin(
       Math.sin(phi1) *
         Math.cos(delta) +
-        Math.cos(phi1) *
-          Math.sin(delta) *
-          Math.cos(theta)
+
+      Math.cos(phi1) *
+        Math.sin(delta) *
+        Math.cos(theta)
     );
+
 
   const lambda2 =
     lambda1 +
@@ -132,6 +218,7 @@ function calcularDestino(
         Math.sin(phi1) *
           Math.sin(phi2)
     );
+
 
   return [
     (
@@ -147,23 +234,123 @@ function calcularDestino(
 }
 
 
+/*
+  =========================================================
+  SORTEIO PONDERADO
+  =========================================================
+*/
+
+function escolherAnimal(
+  lastAnimalId,
+  speciesCooldowns
+) {
+  const now =
+    Date.now();
+
+
+  /*
+    Remove:
+    - último animal
+    - espécies ainda em cooldown
+  */
+
+  let available =
+    encounters.filter(
+      (animal) => {
+        const cooldownUntil =
+          speciesCooldowns[
+            animal.id
+          ] ?? 0;
+
+        return (
+          animal.id !==
+            lastAnimalId &&
+
+          cooldownUntil <= now
+        );
+      }
+    );
+
+
+  /*
+    Se todas estiverem bloqueadas,
+    ignoramos o cooldown individual,
+    mas ainda evitamos repetir
+    a última.
+  */
+
+  if (
+    available.length === 0
+  ) {
+    available =
+      encounters.filter(
+        (animal) =>
+          animal.id !==
+          lastAnimalId
+      );
+  }
+
+
+  /*
+    Segurança para catálogo
+    com apenas 1 espécie.
+  */
+
+  if (
+    available.length === 0
+  ) {
+    available =
+      [...encounters];
+  }
+
+
+  const totalWeight =
+    available.reduce(
+      (total, animal) =>
+        total +
+        (animal.weight ?? 1),
+
+      0
+    );
+
+
+  let random =
+    Math.random() *
+    totalWeight;
+
+
+  for (
+    const animal of
+    available
+  ) {
+    random -=
+      animal.weight ?? 1;
+
+
+    if (random <= 0) {
+      return animal;
+    }
+  }
+
+
+  return available[0];
+}
+
+
+/*
+  =========================================================
+  COMPONENTE
+  =========================================================
+*/
+
 export default function GameMap3D() {
   const navigate =
     useNavigate();
 
 
   /*
-    ===================================
-    STORES
-    ===================================
+    PLAYER
   */
-
-  const markAnimalFound =
-    useProgressStore(
-      (state) =>
-        state.markAnimalFound
-    );
-
 
   const latitude =
     usePlayerStore(
@@ -187,9 +374,64 @@ export default function GameMap3D() {
 
 
   /*
-    ===================================
-    REFS
-    ===================================
+    PROGRESSO
+  */
+
+  const markAnimalFound =
+    useProgressStore(
+      (state) =>
+        state.markAnimalFound
+    );
+
+
+  /*
+    ENCONTROS
+  */
+
+  const activeEncounter =
+    useEncounterStore(
+      (state) =>
+        state.activeEncounter
+    );
+
+
+  const lastEncounterAt =
+    useEncounterStore(
+      (state) =>
+        state.lastEncounterAt
+    );
+
+
+  const lastAnimalId =
+    useEncounterStore(
+      (state) =>
+        state.lastAnimalId
+    );
+
+
+  const speciesCooldowns =
+    useEncounterStore(
+      (state) =>
+        state.speciesCooldowns
+    );
+
+
+  const startEncounter =
+    useEncounterStore(
+      (state) =>
+        state.startEncounter
+    );
+
+
+  const endEncounter =
+    useEncounterStore(
+      (state) =>
+        state.endEncounter
+    );
+
+
+  /*
+    REFS DO MAPA
   */
 
   const mapContainer =
@@ -201,171 +443,136 @@ export default function GameMap3D() {
   const playerTransformRef =
     useRef(null);
 
-  const encountersRef =
+  const encounterLayersRef =
     useRef({});
-
-  const encountersAnchoredRef =
-    useRef(false);
 
   const popupRef =
     useRef(null);
 
 
   /*
-    Sempre guarda o GPS
-    mais recente.
-
-    Isso permite que o GPS
-    chegue antes OU depois
-    do carregamento do mapa.
+    MOVIMENTO
   */
 
-  const latestGpsRef =
-    useRef({
-      latitude,
-      longitude,
-      hasRealPosition,
-    });
+  const lastPositionRef =
+    useRef(null);
+
+
+  const distanceTravelledRef =
+    useRef(0);
+
+
+  const distanceAtLastRollRef =
+    useRef(0);
 
 
   /*
-    ===================================
-    ANCORA OS ANIMAIS NO GPS
-    ===================================
+    Evita várias rolagens
+    no mesmo update.
   */
 
-  function anchorEncounters() {
-    const {
-      latitude:
-        currentLatitude,
-
-      longitude:
-        currentLongitude,
-
-      hasRealPosition:
-        hasGPS,
-    } =
-      latestGpsRef.current;
+  const spawnLockRef =
+    useRef(false);
 
 
-    /*
-      Ainda não temos GPS real.
-    */
+  /*
+    Guarda estado atualizado,
+    evitando closures antigas
+    dentro do MapLibre.
+  */
 
-    if (!hasGPS) {
-      return;
-    }
+  const activeEncounterRef =
+    useRef(
+      activeEncounter
+    );
 
 
-    /*
-      Já fizemos isso.
-    */
+  useEffect(() => {
+    activeEncounterRef.current =
+      activeEncounter;
 
+  }, [
+    activeEncounter,
+  ]);
+
+
+  /*
+    =========================================================
+    ATUALIZA POSIÇÃO DO MODELO DO ENCONTRO
+    =========================================================
+  */
+
+  function updateEncounterTransform(
+    encounter
+  ) {
     if (
-      encountersAnchoredRef.current
+      !encounter
     ) {
       return;
     }
 
 
-    /*
-      Aguarda o style.load
-      criar todos os estados.
-    */
-
-    const allReady =
-      encounters.every(
-        (encounter) =>
-          encountersRef.current[
-            encounter.id
-          ]
+    const animal =
+      encounters.find(
+        (item) =>
+          item.id ===
+          encounter.animalId
       );
 
 
-    if (!allReady) {
+    if (!animal) {
       return;
     }
 
 
-    /*
-      Distribui cada animal
-      ao redor do jogador.
-    */
-
-    encounters.forEach(
-      (encounter) => {
-        const state =
-          encountersRef.current[
-            encounter.id
-          ];
+    const layerState =
+      encounterLayersRef
+        .current[
+          animal.id
+        ];
 
 
-        const position =
-          calcularDestino(
-            currentLatitude,
-            currentLongitude,
-
-            encounter
-              .spawnDistance ??
-              20,
-
-            encounter
-              .spawnBearing ??
-              0
-          );
+    if (!layerState) {
+      return;
+    }
 
 
-        const mercator =
-          maplibregl
-            .MercatorCoordinate
-            .fromLngLat(
-              position,
-              0
-            );
+    const mercator =
+      maplibregl
+        .MercatorCoordinate
+        .fromLngLat(
+          encounter.position,
+          0
+        );
 
 
-        state.position =
-          position;
+    layerState.position =
+      encounter.position;
 
 
-        state.transform.translateX =
-          mercator.x;
-
-        state.transform.translateY =
-          mercator.y;
-
-        state.transform.translateZ =
-          mercator.z;
+    layerState.transform
+      .translateX =
+      mercator.x;
 
 
-        state.transform.scale =
-          mercator
-            .meterInMercatorCoordinateUnits() *
-          (
-            encounter.mapScale ??
-            1
-          );
+    layerState.transform
+      .translateY =
+      mercator.y;
 
 
-        /*
-          Como os animais estão
-          próximos nesta fase,
-          já podem aparecer.
-        */
-
-        state.visible =
-          true;
-      }
-    );
+    layerState.transform
+      .translateZ =
+      mercator.z;
 
 
-    encountersAnchoredRef.current =
-      true;
-
-
-    console.log(
-      'ANIMAIS POSICIONADOS NO GPS'
-    );
+    layerState.transform
+      .scale =
+      mercator
+        .meterInMercatorCoordinateUnits() *
+      (
+        animal.mapScale ??
+        1
+      );
 
 
     mapRef.current
@@ -374,9 +581,235 @@ export default function GameMap3D() {
 
 
   /*
-    ===================================
-    CRIAÇÃO DO MAPA
-    ===================================
+    =========================================================
+    SPAWN
+    =========================================================
+  */
+
+  function tentarSpawn() {
+    if (
+      spawnLockRef.current
+    ) {
+      return;
+    }
+
+
+    if (
+      !hasRealPosition
+    ) {
+      return;
+    }
+
+
+    /*
+      Já existe encontro.
+    */
+
+    if (
+      activeEncounterRef.current
+    ) {
+      return;
+    }
+
+
+    /*
+      Distância mínima.
+    */
+
+    if (
+      distanceTravelledRef
+        .current <
+      MIN_DISTANCE_FOR_SPAWN
+    ) {
+      return;
+    }
+
+
+    /*
+      Cooldown global.
+    */
+
+    if (
+      lastEncounterAt > 0
+    ) {
+      const elapsed =
+        Date.now() -
+        lastEncounterAt;
+
+
+      if (
+        elapsed <
+        SPAWN_COOLDOWN
+      ) {
+        return;
+      }
+    }
+
+
+    /*
+      Primeira tentativa ocorre
+      ao chegar nos 50m.
+
+      Depois, só tenta novamente
+      a cada +20m.
+    */
+
+    if (
+      distanceAtLastRollRef
+        .current !== 0
+    ) {
+      const sinceLastRoll =
+        distanceTravelledRef
+          .current -
+        distanceAtLastRollRef
+          .current;
+
+
+      if (
+        sinceLastRoll <
+        DISTANCE_BETWEEN_ROLLS
+      ) {
+        return;
+      }
+    }
+
+
+    spawnLockRef.current =
+      true;
+
+
+    distanceAtLastRollRef
+      .current =
+      distanceTravelledRef.current;
+
+
+    /*
+      ROLAGEM PARA SABER
+      SE EXISTE ENCONTRO.
+    */
+
+    const spawnRoll =
+      Math.random();
+
+
+    console.log(
+      'Rolagem de encontro:',
+      spawnRoll
+    );
+
+
+    if (
+      spawnRoll >
+      ENCOUNTER_CHANCE
+    ) {
+      console.log(
+        'Nenhum animal apareceu.'
+      );
+
+
+      spawnLockRef.current =
+        false;
+
+
+      return;
+    }
+
+
+    /*
+      ESCOLHE A ESPÉCIE.
+    */
+
+    const animal =
+      escolherAnimal(
+        lastAnimalId,
+        speciesCooldowns
+      );
+
+
+    /*
+      POSIÇÃO ALEATÓRIA
+      AO REDOR DO PLAYER.
+    */
+
+    const distance =
+      MIN_SPAWN_DISTANCE +
+      Math.random() *
+        (
+          MAX_SPAWN_DISTANCE -
+          MIN_SPAWN_DISTANCE
+        );
+
+
+    const bearing =
+      Math.random() *
+      360;
+
+
+    const position =
+      calcularDestino(
+        latitude,
+        longitude,
+        distance,
+        bearing
+      );
+
+
+    const newEncounter = {
+      animalId:
+        animal.id,
+
+      position,
+
+      createdAt:
+        Date.now(),
+    };
+
+
+    console.log(
+      'NOVO ENCONTRO:',
+      animal.name
+    );
+
+
+    startEncounter(
+      animal.id,
+      position
+    );
+
+
+    activeEncounterRef.current =
+      newEncounter;
+
+
+    updateEncounterTransform(
+      newEncounter
+    );
+
+
+    /*
+      Zera distância para
+      o próximo ciclo.
+    */
+
+    distanceTravelledRef
+      .current =
+      0;
+
+
+    distanceAtLastRollRef
+      .current =
+      0;
+
+
+    spawnLockRef.current =
+      false;
+  }
+
+
+  /*
+    =========================================================
+    CRIA MAPA
+    =========================================================
   */
 
   useEffect(() => {
@@ -420,9 +853,7 @@ export default function GameMap3D() {
 
 
     /*
-      ===================================
       CONTROLES
-      ===================================
     */
 
     map.dragPan.disable();
@@ -444,54 +875,33 @@ export default function GameMap3D() {
 
 
     /*
-      ===================================
-      PERSPECTIVA
-      ===================================
+      PITCH
     */
 
     function atualizarPerspectiva() {
       const zoom =
         map.getZoom();
 
-      const minZoom =
-        17;
-
-      const maxZoom =
-        21;
-
-      const minPitch =
-        35;
-
-      const maxPitch =
-        70;
-
 
       const progress =
         (
-          zoom -
-          minZoom
+          zoom - 17
         ) /
-        (
-          maxZoom -
-          minZoom
-        );
+        4;
 
 
       const pitch =
-        minPitch +
+        35 +
         progress *
-          (
-            maxPitch -
-            minPitch
-          );
+          35;
 
 
       map.setPitch(
         Math.max(
-          minPitch,
+          35,
 
           Math.min(
-            maxPitch,
+            70,
             pitch
           )
         )
@@ -509,9 +919,9 @@ export default function GameMap3D() {
 
 
     /*
-      ===================================
-      STYLE LOAD
-      ===================================
+      =========================================================
+      STYLE
+      =========================================================
     */
 
     map.on(
@@ -519,9 +929,7 @@ export default function GameMap3D() {
       () => {
 
         /*
-          ===================================
-          CORES DO MAPA
-          ===================================
+          MAPA
         */
 
         const layers =
@@ -538,9 +946,7 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
-
                 'background-color',
-
                 '#dfe8c8'
               );
             }
@@ -552,9 +958,7 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
-
                 'fill-color',
-
                 '#cfd9b6'
               );
             }
@@ -566,9 +970,7 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
-
                 'line-color',
-
                 '#a8b28f'
               );
             }
@@ -580,27 +982,19 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
-
                 'fill-extrusion-color',
-
                 '#c8c3ae'
               );
 
-
               map.setPaintProperty(
                 layer.id,
-
                 'fill-extrusion-height',
-
                 1
               );
 
-
               map.setPaintProperty(
                 layer.id,
-
                 'fill-extrusion-base',
-
                 0
               );
             }
@@ -609,9 +1003,9 @@ export default function GameMap3D() {
 
 
         /*
-          ===================================
+          =========================================================
           PLAYER
-          ===================================
+          =========================================================
         */
 
         const playerMercator =
@@ -622,7 +1016,6 @@ export default function GameMap3D() {
                 longitude,
                 latitude,
               ],
-
               0
             );
 
@@ -679,19 +1072,13 @@ export default function GameMap3D() {
               new THREE.Scene();
 
 
-            const hemisphere =
+            this.scene.add(
               new THREE
                 .HemisphereLight(
                   0xffffff,
-
                   0x444444,
-
                   2
-                );
-
-
-            this.scene.add(
-              hemisphere
+                )
             );
 
 
@@ -717,32 +1104,18 @@ export default function GameMap3D() {
             );
 
 
-            const loader =
-              new GLTFLoader();
+            new GLTFLoader()
+              .load(
+                `${import.meta.env.BASE_URL}models/gnome.glb`,
 
+                (gltf) => {
+                  this.scene.add(
+                    gltf.scene
+                  );
 
-            loader.load(
-              `${import.meta.env.BASE_URL}models/gnome.glb`,
-
-              (gltf) => {
-                this.scene.add(
-                  gltf.scene
-                );
-
-
-                map.triggerRepaint();
-              },
-
-              undefined,
-
-              (error) => {
-                console.error(
-                  'ERRO GNOME:',
-
-                  error
-                );
-              }
-            );
+                  map.triggerRepaint();
+                }
+              );
 
 
             this.renderer =
@@ -769,31 +1142,8 @@ export default function GameMap3D() {
             gl,
             args
           ) {
-            const rx =
-              new THREE
-                .Matrix4()
-                .makeRotationX(
-                  playerTransform
-                    .rotateX
-                );
-
-
-            const ry =
-              new THREE
-                .Matrix4()
-                .makeRotationY(
-                  playerTransform
-                    .rotateY
-                );
-
-
-            const rz =
-              new THREE
-                .Matrix4()
-                .makeRotationZ(
-                  playerTransform
-                    .rotateZ
-                );
+            const transform =
+              playerTransform;
 
 
             const m =
@@ -811,47 +1161,34 @@ export default function GameMap3D() {
                 .Matrix4()
 
                 .makeTranslation(
-                  playerTransform
-                    .translateX,
-
-                  playerTransform
-                    .translateY,
-
-                  playerTransform
-                    .translateZ
+                  transform.translateX,
+                  transform.translateY,
+                  transform.translateZ
                 )
 
                 .scale(
-                  new THREE.Vector3(
-                    playerTransform
-                      .scale,
+                  new THREE
+                    .Vector3(
+                      transform.scale,
 
-                    -playerTransform
-                      .scale,
+                      -transform.scale,
 
-                    playerTransform
-                      .scale
-                  )
+                      transform.scale
+                    )
                 )
 
                 .multiply(
-                  rx
-                )
-
-                .multiply(
-                  ry
-                )
-
-                .multiply(
-                  rz
+                  new THREE
+                    .Matrix4()
+                    .makeRotationX(
+                      transform.rotateX
+                    )
                 );
 
 
             this.camera
               .projectionMatrix =
-              m.multiply(
-                l
-              );
+              m.multiply(l);
 
 
             this.renderer
@@ -861,7 +1198,6 @@ export default function GameMap3D() {
             this.renderer
               .render(
                 this.scene,
-
                 this.camera
               );
 
@@ -883,305 +1219,133 @@ export default function GameMap3D() {
 
 
         /*
-          ===================================
-          POPUP
-          ===================================
+          =========================================================
+          CRIA LAYERS DOS ANIMAIS
+          =========================================================
         */
 
-        function abrirEncontro(
-          encounter
-        ) {
-          const state =
-            encountersRef
+        encounters.forEach(
+          (animal) => {
+
+            const mercator =
+              maplibregl
+                .MercatorCoordinate
+                .fromLngLat(
+                  [
+                    longitude,
+                    latitude,
+                  ],
+                  0
+                );
+
+
+            const transform = {
+              translateX:
+                mercator.x,
+
+              translateY:
+                mercator.y,
+
+              translateZ:
+                mercator.z,
+
+              rotateX:
+                Math.PI / 2,
+
+              rotateY:
+                0,
+
+              rotateZ:
+                0,
+
+              scale:
+                mercator
+                  .meterInMercatorCoordinateUnits() *
+                (
+                  animal.mapScale ??
+                  1
+                ),
+            };
+
+
+            encounterLayersRef
               .current[
-                encounter.id
-              ];
-
-
-          if (
-            !state
-              ?.position
-          ) {
-            return;
-          }
-
-
-          popupRef.current
-            ?.remove();
-
-
-          const container =
-            document
-              .createElement(
-                'div'
-              );
-
-
-          container.style
-            .minWidth =
-            '180px';
-
-
-          const title =
-            document
-              .createElement(
-                'strong'
-              );
-
-
-          title.textContent =
-            encounter.name;
-
-
-          const text =
-            document
-              .createElement(
-                'p'
-              );
-
-
-          text.textContent =
-            `Você encontrou ${encounter.name}!`;
-
-
-          text.style.margin =
-            '8px 0';
-
-
-          const button =
-            document
-              .createElement(
-                'button'
-              );
-
-
-          button.textContent =
-            'Observar em AR';
-
-
-          button.style.padding =
-            '8px 12px';
-
-
-          button.style.cursor =
-            'pointer';
-
-
-          button.addEventListener(
-            'click',
-
-            () => {
-              popupRef.current
-                ?.remove();
-
-
-              /*
-                Passamos o animal
-                diretamente na URL.
-
-                Não dependemos do store
-                para o AR saber quem é.
-              */
-
-              navigate(
-                `/ar?animal=${encounter.id}`
-              );
-            }
-          );
-
-
-          container.append(
-            title,
-            text,
-            button
-          );
-
-
-          popupRef.current =
-            new maplibregl
-              .Popup({
-                offset:
-                  35,
-
-                closeButton:
-                  true,
-              })
-
-              .setLngLat(
-                state.position
-              )
-
-              .setDOMContent(
-                container
-              )
-
-              .addTo(
-                map
-              );
-        }
-
-
-        /*
-          ===================================
-          ANIMAIS
-          ===================================
-        */
-
-        encounters
-          .filter(
-            (encounter) =>
-              encounter.type ===
-              'animal'
-          )
-
-          .forEach(
-            (encounter) => {
-
-              /*
-                Estado inicial invisível.
-
-                Depois que GPS + mapa
-                estiverem disponíveis,
-                anchorEncounters()
-                posiciona tudo.
-              */
-
-              const mercator =
-                maplibregl
-                  .MercatorCoordinate
-                  .fromLngLat(
-                    [
-                      longitude,
-                      latitude,
-                    ],
-
-                    0
-                  );
-
-
-              const transform = {
-                translateX:
-                  mercator.x,
-
-                translateY:
-                  mercator.y,
-
-                translateZ:
-                  mercator.z,
-
-                rotateX:
-                  Math.PI / 2,
-
-                rotateY:
-                  0,
-
-                rotateZ:
-                  0,
-
-                scale:
-                  mercator
-                    .meterInMercatorCoordinateUnits() *
-                  (
-                    encounter
-                      .mapScale ??
-                    1
-                  ),
+                animal.id
+              ] = {
+                transform,
+                position: null,
               };
 
 
-              encountersRef
-                .current[
-                  encounter.id
-                ] = {
-                  position:
-                    null,
+            const layer = {
+              id:
+                `encounter-${animal.id}`,
 
-                  transform,
+              type:
+                'custom',
 
-                  visible:
-                    false,
-                };
+              renderingMode:
+                '3d',
 
 
-              const animalLayer = {
-                id:
-                  `encounter-${encounter.id}`,
-
-                type:
-                  'custom',
-
-                renderingMode:
-                  '3d',
+              onAdd(
+                map,
+                gl
+              ) {
+                this.camera =
+                  new THREE
+                    .Camera();
 
 
-                onAdd(
-                  map,
-                  gl
-                ) {
-                  this.camera =
-                    new THREE
-                      .Camera();
+                this.scene =
+                  new THREE
+                    .Scene();
 
 
-                  this.scene =
-                    new THREE
-                      .Scene();
+                this.model =
+                  null;
 
 
-                  this.model =
-                    null;
+                this.raycaster =
+                  new THREE
+                    .Raycaster();
 
 
-                  this.raycaster =
-                    new THREE
-                      .Raycaster();
+                this.scene.add(
+                  new THREE
+                    .HemisphereLight(
+                      0xffffff,
+                      0x444444,
+                      2.5
+                    )
+                );
 
 
-                  const hemisphere =
-                    new THREE
-                      .HemisphereLight(
-                        0xffffff,
-
-                        0x444444,
-
-                        2.5
-                      );
-
-
-                  this.scene.add(
-                    hemisphere
-                  );
-
-
-                  const directional =
-                    new THREE
-                      .DirectionalLight(
-                        0xffffff,
-
-                        2
-                      );
-
-
-                  directional
-                    .position
-                    .set(
-                      0,
-                      -70,
-                      100
+                const directional =
+                  new THREE
+                    .DirectionalLight(
+                      0xffffff,
+                      2
                     );
 
 
-                  this.scene.add(
-                    directional
+                directional
+                  .position
+                  .set(
+                    0,
+                    -70,
+                    100
                   );
 
 
-                  const loader =
-                    new GLTFLoader();
+                this.scene.add(
+                  directional
+                );
 
 
-                  loader.load(
-                    `${import.meta.env.BASE_URL}models/${encounter.model}`,
+                new GLTFLoader()
+                  .load(
+                    `${import.meta.env.BASE_URL}models/${animal.model}`,
 
                     (gltf) => {
                       this.model =
@@ -1193,369 +1357,462 @@ export default function GameMap3D() {
                       );
 
 
-                      console.log(
-                        `${encounter.name} CARREGOU`
-                      );
-
-
                       map.triggerRepaint();
-                    },
-
-                    undefined,
-
-                    (error) => {
-                      console.error(
-                        `ERRO ${encounter.name}:`,
-
-                        error
-                      );
                     }
                   );
 
 
-                  this.renderer =
-                    new THREE
-                      .WebGLRenderer({
-                        canvas:
-                          map.getCanvas(),
+                this.renderer =
+                  new THREE
+                    .WebGLRenderer({
+                      canvas:
+                        map.getCanvas(),
 
-                        context:
-                          gl,
+                      context:
+                        gl,
 
-                        antialias:
-                          true,
-                      });
-
-
-                  this.renderer
-                    .autoClear =
-                    false;
+                      antialias:
+                        true,
+                    });
 
 
-                  /*
-                    ===================================
-                    CLIQUE
-                    ===================================
-                  */
-
-                  this.handleClick =
-                    (event) => {
-                      const state =
-                        encountersRef
-                          .current[
-                            encounter.id
-                          ];
+                this.renderer
+                  .autoClear =
+                  false;
 
 
-                      if (
-                        !state
-                          ?.visible
-                      ) {
-                        return;
-                      }
+                /*
+                  CLIQUE
+                */
+
+                this.handleClick =
+                  (event) => {
+                    const encounter =
+                      activeEncounterRef
+                        .current;
 
 
-                      if (
-                        !this.model
-                      ) {
-                        return;
-                      }
+                    if (
+                      !encounter ||
+                      encounter.animalId !==
+                        animal.id
+                    ) {
+                      return;
+                    }
 
 
-                      const canvas =
-                        map.getCanvas();
+                    if (
+                      !this.model
+                    ) {
+                      return;
+                    }
 
 
-                      const mouseX =
-                        (
-                          event.point.x /
-                          canvas.clientWidth
-                        ) *
-                          2 -
-                        1;
+                    /*
+                      Precisa estar perto.
+                    */
+
+                    const distance =
+                      calcularDistancia(
+                        latitude,
+                        longitude,
+
+                        encounter
+                          .position[1],
+
+                        encounter
+                          .position[0]
+                      );
 
 
-                      const mouseY =
-                        -(
-                          event.point.y /
-                          canvas.clientHeight
-                        ) *
-                          2 +
-                        1;
+                    if (
+                      distance >
+                      INTERACTION_RADIUS
+                    ) {
+                      popupRef.current
+                        ?.remove();
 
 
-                      const inverse =
-                        this.camera
-                          .projectionMatrix
-                          .clone()
-                          .invert();
+                      popupRef.current =
+                        new maplibregl
+                          .Popup({
+                            offset:
+                              35,
+                          })
 
-
-                      const near =
-                        new THREE
-                          .Vector3(
-                            mouseX,
-                            mouseY,
-                            -1
+                          .setLngLat(
+                            encounter.position
                           )
 
-                          .applyMatrix4(
-                            inverse
+                          .setHTML(
+                            `
+                              <strong>${animal.name}</strong>
+                              <p>Aproxime-se mais para observar.</p>
+                            `
+                          )
+
+                          .addTo(
+                            map
                           );
 
 
-                      const far =
-                        new THREE
-                          .Vector3(
-                            mouseX,
-                            mouseY,
-                            1
-                          )
-
-                          .applyMatrix4(
-                            inverse
-                          );
+                      return;
+                    }
 
 
-                      const direction =
-                        far
-                          .clone()
+                    /*
+                      RAYCAST
+                    */
 
-                          .sub(
-                            near
-                          )
-
-                          .normalize();
+                    const canvas =
+                      map.getCanvas();
 
 
-                      this.raycaster
-                        .set(
-                          near,
-                          direction
-                        );
+                    const mouseX =
+                      (
+                        event.point.x /
+                        canvas.clientWidth
+                      ) *
+                        2 -
+                      1;
 
 
-                      const hits =
-                        this.raycaster
-                          .intersectObject(
-                            this.model,
-
-                            true
-                          );
-
-
-                      if (
-                        hits.length >
-                        0
-                      ) {
-                        console.log(
-                          'ANIMAL ENCONTRADO:',
-
-                          encounter.id
-                        );
+                    const mouseY =
+                      -(
+                        event.point.y /
+                        canvas.clientHeight
+                      ) *
+                        2 +
+                      1;
 
 
-                        /*
-                          Mantemos o store
-                          funcionando para
-                          progresso/missão.
-                        */
-
-                        markAnimalFound(
-                          encounter.id
-                        );
-
-
-                        abrirEncontro(
-                          encounter
-                        );
-                      }
-                    };
-
-
-                  map.on(
-                    'click',
-
-                    this.handleClick
-                  );
-                },
-
-
-                render(
-                  gl,
-                  args
-                ) {
-                  const state =
-                    encountersRef
-                      .current[
-                        encounter.id
-                      ];
-
-
-                  if (
-                    !state
-                      ?.visible
-                  ) {
-                    return;
-                  }
-
-
-                  const transform =
-                    state.transform;
-
-
-                  const rx =
-                    new THREE
-                      .Matrix4()
-                      .makeRotationX(
-                        transform
-                          .rotateX
-                      );
-
-
-                  const ry =
-                    new THREE
-                      .Matrix4()
-                      .makeRotationY(
-                        transform
-                          .rotateY
-                      );
-
-
-                  const rz =
-                    new THREE
-                      .Matrix4()
-                      .makeRotationZ(
-                        transform
-                          .rotateZ
-                      );
-
-
-                  const m =
-                    new THREE
-                      .Matrix4()
-                      .fromArray(
-                        args
-                          .defaultProjectionData
-                          .mainMatrix
-                      );
-
-
-                  const l =
-                    new THREE
-                      .Matrix4()
-
-                      .makeTranslation(
-                        transform
-                          .translateX,
-
-                        transform
-                          .translateY,
-
-                        transform
-                          .translateZ
-                      )
-
-                      .scale(
-                        new THREE
-                          .Vector3(
-                            transform
-                              .scale,
-
-                            -transform
-                              .scale,
-
-                            transform
-                              .scale
-                          )
-                      )
-
-                      .multiply(
-                        rx
-                      )
-
-                      .multiply(
-                        ry
-                      )
-
-                      .multiply(
-                        rz
-                      );
-
-
-                  this.camera
-                    .projectionMatrix =
-                    m.multiply(
-                      l
-                    );
-
-
-                  this.camera
-                    .projectionMatrixInverse
-
-                    .copy(
+                    const inverse =
                       this.camera
                         .projectionMatrix
+                        .clone()
+                        .invert();
+
+
+                    const near =
+                      new THREE
+                        .Vector3(
+                          mouseX,
+                          mouseY,
+                          -1
+                        )
+
+                        .applyMatrix4(
+                          inverse
+                        );
+
+
+                    const far =
+                      new THREE
+                        .Vector3(
+                          mouseX,
+                          mouseY,
+                          1
+                        )
+
+                        .applyMatrix4(
+                          inverse
+                        );
+
+
+                    const direction =
+                      far
+                        .clone()
+
+                        .sub(near)
+
+                        .normalize();
+
+
+                    this.raycaster
+                      .set(
+                        near,
+                        direction
+                      );
+
+
+                    const hits =
+                      this.raycaster
+                        .intersectObject(
+                          this.model,
+                          true
+                        );
+
+
+                    if (
+                      hits.length === 0
+                    ) {
+                      return;
+                    }
+
+
+                    markAnimalFound(
+                      animal.id
+                    );
+
+
+                    popupRef.current
+                      ?.remove();
+
+
+                    const content =
+                      document
+                        .createElement(
+                          'div'
+                        );
+
+
+                    const title =
+                      document
+                        .createElement(
+                          'strong'
+                        );
+
+
+                    title.textContent =
+                      animal.name;
+
+
+                    const text =
+                      document
+                        .createElement(
+                          'p'
+                        );
+
+
+                    text.textContent =
+                      `Você encontrou ${animal.name}!`;
+
+
+                    const button =
+                      document
+                        .createElement(
+                          'button'
+                        );
+
+
+                    button.textContent =
+                      'Observar em AR';
+
+
+                    button.addEventListener(
+                      'click',
+                      () => {
+                        navigate(
+                          `/ar?animal=${animal.id}`
+                        );
+                      }
+                    );
+
+
+                    content.append(
+                      title,
+                      text,
+                      button
+                    );
+
+
+                    popupRef.current =
+                      new maplibregl
+                        .Popup({
+                          offset: 35,
+                        })
+
+                        .setLngLat(
+                          encounter
+                            .position
+                        )
+
+                        .setDOMContent(
+                          content
+                        )
+
+                        .addTo(
+                          map
+                        );
+                  };
+
+
+                map.on(
+                  'click',
+                  this.handleClick
+                );
+              },
+
+
+              render(
+                gl,
+                args
+              ) {
+                const encounter =
+                  activeEncounterRef
+                    .current;
+
+
+                /*
+                  Só renderiza
+                  a espécie ativa.
+                */
+
+                if (
+                  !encounter ||
+                  encounter.animalId !==
+                    animal.id
+                ) {
+                  return;
+                }
+
+
+                const state =
+                  encounterLayersRef
+                    .current[
+                      animal.id
+                    ];
+
+
+                if (
+                  !state
+                    ?.position
+                ) {
+                  return;
+                }
+
+
+                /*
+                  Só aparece
+                  dentro do raio.
+                */
+
+                const playerDistance =
+                  calcularDistancia(
+                    latitude,
+                    longitude,
+
+                    state.position[1],
+                    state.position[0]
+                  );
+
+
+                if (
+                  playerDistance >
+                  REVEAL_RADIUS
+                ) {
+                  return;
+                }
+
+
+                const t =
+                  state.transform;
+
+
+                const m =
+                  new THREE
+                    .Matrix4()
+                    .fromArray(
+                      args
+                        .defaultProjectionData
+                        .mainMatrix
+                    );
+
+
+                const l =
+                  new THREE
+                    .Matrix4()
+
+                    .makeTranslation(
+                      t.translateX,
+                      t.translateY,
+                      t.translateZ
                     )
 
-                    .invert();
+                    .scale(
+                      new THREE
+                        .Vector3(
+                          t.scale,
+                          -t.scale,
+                          t.scale
+                        )
+                    )
 
-
-                  this.renderer
-                    .resetState();
-
-
-                  this.renderer
-                    .render(
-                      this.scene,
-
-                      this.camera
+                    .multiply(
+                      new THREE
+                        .Matrix4()
+                        .makeRotationX(
+                          t.rotateX
+                        )
                     );
 
 
-                  map.triggerRepaint();
-                },
+                this.camera
+                  .projectionMatrix =
+                  m.multiply(l);
 
 
-                onRemove(
-                  map
+                this.camera
+                  .projectionMatrixInverse
+                  .copy(
+                    this.camera
+                      .projectionMatrix
+                  )
+                  .invert();
+
+
+                this.renderer
+                  .resetState();
+
+
+                this.renderer
+                  .render(
+                    this.scene,
+                    this.camera
+                  );
+
+
+                map.triggerRepaint();
+              },
+
+
+              onRemove(map) {
+                if (
+                  this.handleClick
                 ) {
-                  if (
-                    this
-                      .handleClick
-                  ) {
-                    map.off(
-                      'click',
-
-                      this
-                        .handleClick
-                    );
-                  }
+                  map.off(
+                    'click',
+                    this.handleClick
+                  );
+                }
 
 
-                  this.renderer
-                    ?.dispose();
-                },
-              };
+                this.renderer
+                  ?.dispose();
+              },
+            };
 
 
-              map.addLayer(
-                animalLayer
-              );
-            }
-          );
+            map.addLayer(
+              layer
+            );
+          }
+        );
 
 
         /*
-          MUITO IMPORTANTE:
-
-          O mapa pode terminar
-          depois que o GPS já chegou.
-
-          Então tentamos ancorar aqui também.
+          Se voltou do AR,
+          restaura o encontro existente.
         */
 
-        anchorEncounters();
+        if (
+          activeEncounterRef
+            .current
+        ) {
+          updateEncounterTransform(
+            activeEncounterRef.current
+          );
+        }
 
 
         map.triggerRepaint();
@@ -1563,22 +1820,9 @@ export default function GameMap3D() {
     );
 
 
-    /*
-      ===================================
-      CLEANUP
-      ===================================
-    */
-
     return () => {
       popupRef.current
         ?.remove();
-
-
-      map.off(
-        'zoom',
-
-        atualizarPerspectiva
-      );
 
 
       map.remove();
@@ -1588,12 +1832,9 @@ export default function GameMap3D() {
         null;
 
 
-      encountersRef.current =
+      encounterLayersRef
+        .current =
         {};
-
-
-      encountersAnchoredRef.current =
-        false;
     };
 
   }, [
@@ -1603,56 +1844,45 @@ export default function GameMap3D() {
 
 
   /*
-    ===================================
-    GPS REAL CHEGOU
-    ===================================
-  */
-
-  useEffect(() => {
-    latestGpsRef.current = {
-      latitude,
-      longitude,
-      hasRealPosition,
-    };
-
-
-    /*
-      O GPS pode terminar depois
-      que o mapa já carregou.
-
-      Então tentamos ancorar aqui.
-    */
-
-    anchorEncounters();
-
-  }, [
-    latitude,
-    longitude,
-    hasRealPosition,
-  ]);
-
-
-  /*
-    ===================================
-    MOVIMENTO DO PLAYER
-    ===================================
+    =========================================================
+    ENCONTRO MUDOU
+    =========================================================
   */
 
   useEffect(() => {
     if (
-      !mapRef.current
+      activeEncounter
+    ) {
+      updateEncounterTransform(
+        activeEncounter
+      );
+    }
+
+  }, [
+    activeEncounter,
+  ]);
+
+
+  /*
+    =========================================================
+    GPS / MOVIMENTO / SPAWN
+    =========================================================
+  */
+
+  useEffect(() => {
+    if (
+      !hasRealPosition
     ) {
       return;
     }
 
 
     /*
-      Centraliza mapa
-      no jogador.
+      Move o mapa.
     */
 
     mapRef.current
-      .easeTo({
+      ?.easeTo({
         center: [
           longitude,
           latitude,
@@ -1664,14 +1894,14 @@ export default function GameMap3D() {
 
 
     /*
-      Move o Gnome.
+      Move personagem.
     */
 
     if (
       playerTransformRef
         .current
     ) {
-      const position =
+      const mercator =
         maplibregl
           .MercatorCoordinate
           .fromLngLat(
@@ -1679,7 +1909,6 @@ export default function GameMap3D() {
               longitude,
               latitude,
             ],
-
             0
           );
 
@@ -1687,92 +1916,168 @@ export default function GameMap3D() {
       playerTransformRef
         .current
         .translateX =
-        position.x;
+        mercator.x;
 
 
       playerTransformRef
         .current
         .translateY =
-        position.y;
+        mercator.y;
 
 
       playerTransformRef
         .current
         .translateZ =
-        position.z;
+        mercator.z;
 
 
       playerTransformRef
         .current
         .scale =
-        position
+        mercator
           .meterInMercatorCoordinateUnits();
-
-
-      playerTransformRef
-        .current
-        .rotateZ =
-        0;
     }
 
 
     /*
-      ===================================
-      DISTÂNCIA DOS ANIMAIS
-      ===================================
+      Conta quanto o jogador
+      realmente caminhou.
     */
 
-    encounters.forEach(
-      (encounter) => {
-        const state =
-          encountersRef
-            .current[
-              encounter.id
-            ];
+    if (
+      lastPositionRef.current
+    ) {
+      const previous =
+        lastPositionRef.current;
 
 
-        if (
-          !state ||
-          !state.position
-        ) {
-          return;
-        }
+      const movement =
+        calcularDistancia(
+          previous.latitude,
+          previous.longitude,
+
+          latitude,
+          longitude
+        );
 
 
-        const [
-          encounterLongitude,
-          encounterLatitude,
-        ] =
-          state.position;
+      /*
+        Evita jitter e saltos
+        absurdos de GPS.
+      */
+
+      if (
+        movement >=
+          MIN_VALID_GPS_MOVEMENT &&
+
+        movement <=
+          MAX_VALID_GPS_MOVEMENT
+      ) {
+        distanceTravelledRef
+          .current +=
+          movement;
 
 
-        const distance =
-          calcularDistancia(
-            latitude,
-            longitude,
-
-            encounterLatitude,
-            encounterLongitude
-          );
-
-
-        state.visible =
-          distance <=
-          (
-            encounter
-              .revealRadius ??
-            40
-          );
+        console.log(
+          'Distância:',
+          Math.round(
+            distanceTravelledRef
+              .current
+          ),
+          'm'
+        );
       }
-    );
+    }
+
+
+    lastPositionRef.current = {
+      latitude,
+      longitude,
+    };
+
+
+    /*
+      Se há encontro,
+      verifica se jogador
+      abandonou.
+    */
+
+    const encounter =
+      activeEncounterRef
+        .current;
+
+
+    if (
+      encounter
+    ) {
+      const distance =
+        calcularDistancia(
+          latitude,
+          longitude,
+
+          encounter.position[1],
+          encounter.position[0]
+        );
+
+
+      if (
+        distance >
+        DESPAWN_RADIUS
+      ) {
+        console.log(
+          'Encontro perdido.'
+        );
+
+
+        endEncounter(
+          encounter.animalId
+        );
+
+
+        activeEncounterRef
+          .current =
+          null;
+
+
+        distanceTravelledRef
+          .current =
+          0;
+
+
+        distanceAtLastRollRef
+          .current =
+          0;
+
+
+        popupRef.current
+          ?.remove();
+      }
+
+
+      mapRef.current
+        ?.triggerRepaint();
+
+
+      return;
+    }
+
+
+    /*
+      Não existe encontro:
+      tenta gerar um.
+    */
+
+    tentarSpawn();
 
 
     mapRef.current
-      .triggerRepaint();
+      ?.triggerRepaint();
 
   }, [
     latitude,
     longitude,
+    hasRealPosition,
+    endEncounter,
   ]);
 
 
