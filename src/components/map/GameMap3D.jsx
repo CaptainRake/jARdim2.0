@@ -1,14 +1,33 @@
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {
+  useEffect,
+  useRef,
+} from 'react';
 
-import maplibregl from 'maplibre-gl';
+import {
+  useNavigate,
+} from 'react-router-dom';
 
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import maplibregl
+  from 'maplibre-gl';
 
-import { encounters } from '../../data/encounters';
-import { usePlayerStore } from '../../stores/playerStore';
-import { useProgressStore } from '../../stores/progressStore';
+import * as THREE
+  from 'three';
+
+import {
+  GLTFLoader,
+} from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+import {
+  encounters,
+} from '../../data/encounters';
+
+import {
+  usePlayerStore,
+} from '../../stores/playerStore';
+
+import {
+  useProgressStore,
+} from '../../stores/progressStore';
 
 
 function calcularDistancia(
@@ -19,69 +38,111 @@ function calcularDistancia(
 ) {
   const R = 6371000;
 
-  const φ1 =
+  const p1 =
     (lat1 * Math.PI) / 180;
 
-  const φ2 =
+  const p2 =
     (lat2 * Math.PI) / 180;
 
-  const Δφ =
-    ((lat2 - lat1) * Math.PI) /
+  const deltaLat =
+    ((lat2 - lat1) *
+      Math.PI) /
     180;
 
-  const Δλ =
-    ((lon2 - lon1) * Math.PI) /
+  const deltaLon =
+    ((lon2 - lon1) *
+      Math.PI) /
     180;
 
   const a =
-    Math.sin(Δφ / 2) *
-      Math.sin(Δφ / 2) +
-    Math.cos(φ1) *
-      Math.cos(φ2) *
-      Math.sin(Δλ / 2) *
-      Math.sin(Δλ / 2);
+    Math.sin(
+      deltaLat / 2
+    ) ** 2 +
+    Math.cos(p1) *
+      Math.cos(p2) *
+      Math.sin(
+        deltaLon / 2
+      ) ** 2;
 
   const c =
     2 *
     Math.atan2(
       Math.sqrt(a),
-      Math.sqrt(1 - a)
+      Math.sqrt(
+        1 - a
+      )
     );
 
   return R * c;
 }
 
 
-function getEncounterPosition(
-  encounter,
-  playerLatitude,
-  playerLongitude
+/*
+  Retorna uma coordenada
+  a determinada distância
+  e direção do jogador.
+*/
+
+function calcularDestino(
+  latitude,
+  longitude,
+  distance,
+  bearing
 ) {
-  /*
-    POSIÇÃO REAL
-  */
+  const R = 6371000;
 
-  if (encounter.position) {
-    return [
-      encounter.position.longitude,
-      encounter.position.latitude,
-    ];
-  }
+  const delta =
+    distance / R;
 
+  const theta =
+    (
+      bearing *
+      Math.PI
+    ) / 180;
 
-  /*
-    POSIÇÃO DE TESTE
+  const phi1 =
+    (
+      latitude *
+      Math.PI
+    ) / 180;
 
-    Fica relativa à posição
-    inicial do jogador.
-  */
+  const lambda1 =
+    (
+      longitude *
+      Math.PI
+    ) / 180;
+
+  const phi2 =
+    Math.asin(
+      Math.sin(phi1) *
+        Math.cos(delta) +
+        Math.cos(phi1) *
+          Math.sin(delta) *
+          Math.cos(theta)
+    );
+
+  const lambda2 =
+    lambda1 +
+    Math.atan2(
+      Math.sin(theta) *
+        Math.sin(delta) *
+        Math.cos(phi1),
+
+      Math.cos(delta) -
+        Math.sin(phi1) *
+          Math.sin(phi2)
+    );
 
   return [
-    playerLongitude +
-      (encounter.testOffset?.longitude ?? 0),
+    (
+      lambda2 *
+      180
+    ) / Math.PI,
 
-    playerLatitude +
-      (encounter.testOffset?.latitude ?? 0),
+    (
+      phi2 *
+      180
+    ) / Math.PI,
   ];
 }
 
@@ -90,42 +151,11 @@ export default function GameMap3D() {
   const navigate =
     useNavigate();
 
-  const mapContainer =
-    useRef(null);
-
-  const mapRef =
-    useRef(null);
-
 
   /*
-    PLAYER
-  */
-
-  const playerTransformRef =
-    useRef(null);
-
-
-  /*
-    ENCONTROS
-
-    Guardamos posição e visibilidade
-    individual de cada animal.
-  */
-
-  const encountersRef =
-    useRef({});
-
-
-  /*
-    POPUP
-  */
-
-  const popupRef =
-    useRef(null);
-
-
-  /*
-    PROGRESSO
+    ===================================
+    STORES
+    ===================================
   */
 
   const markAnimalFound =
@@ -135,21 +165,212 @@ export default function GameMap3D() {
     );
 
 
-  /*
-    GPS
-  */
-
   const latitude =
     usePlayerStore(
       (state) =>
         state.latitude
     );
 
+
   const longitude =
     usePlayerStore(
       (state) =>
         state.longitude
     );
+
+
+  const hasRealPosition =
+    usePlayerStore(
+      (state) =>
+        state.hasRealPosition
+    );
+
+
+  /*
+    ===================================
+    REFS
+    ===================================
+  */
+
+  const mapContainer =
+    useRef(null);
+
+  const mapRef =
+    useRef(null);
+
+  const playerTransformRef =
+    useRef(null);
+
+  const encountersRef =
+    useRef({});
+
+  const encountersAnchoredRef =
+    useRef(false);
+
+  const popupRef =
+    useRef(null);
+
+
+  /*
+    Sempre guarda o GPS
+    mais recente.
+
+    Isso permite que o GPS
+    chegue antes OU depois
+    do carregamento do mapa.
+  */
+
+  const latestGpsRef =
+    useRef({
+      latitude,
+      longitude,
+      hasRealPosition,
+    });
+
+
+  /*
+    ===================================
+    ANCORA OS ANIMAIS NO GPS
+    ===================================
+  */
+
+  function anchorEncounters() {
+    const {
+      latitude:
+        currentLatitude,
+
+      longitude:
+        currentLongitude,
+
+      hasRealPosition:
+        hasGPS,
+    } =
+      latestGpsRef.current;
+
+
+    /*
+      Ainda não temos GPS real.
+    */
+
+    if (!hasGPS) {
+      return;
+    }
+
+
+    /*
+      Já fizemos isso.
+    */
+
+    if (
+      encountersAnchoredRef.current
+    ) {
+      return;
+    }
+
+
+    /*
+      Aguarda o style.load
+      criar todos os estados.
+    */
+
+    const allReady =
+      encounters.every(
+        (encounter) =>
+          encountersRef.current[
+            encounter.id
+          ]
+      );
+
+
+    if (!allReady) {
+      return;
+    }
+
+
+    /*
+      Distribui cada animal
+      ao redor do jogador.
+    */
+
+    encounters.forEach(
+      (encounter) => {
+        const state =
+          encountersRef.current[
+            encounter.id
+          ];
+
+
+        const position =
+          calcularDestino(
+            currentLatitude,
+            currentLongitude,
+
+            encounter
+              .spawnDistance ??
+              20,
+
+            encounter
+              .spawnBearing ??
+              0
+          );
+
+
+        const mercator =
+          maplibregl
+            .MercatorCoordinate
+            .fromLngLat(
+              position,
+              0
+            );
+
+
+        state.position =
+          position;
+
+
+        state.transform.translateX =
+          mercator.x;
+
+        state.transform.translateY =
+          mercator.y;
+
+        state.transform.translateZ =
+          mercator.z;
+
+
+        state.transform.scale =
+          mercator
+            .meterInMercatorCoordinateUnits() *
+          (
+            encounter.mapScale ??
+            1
+          );
+
+
+        /*
+          Como os animais estão
+          próximos nesta fase,
+          já podem aparecer.
+        */
+
+        state.visible =
+          true;
+      }
+    );
+
+
+    encountersAnchoredRef.current =
+      true;
+
+
+    console.log(
+      'ANIMAIS POSICIONADOS NO GPS'
+    );
+
+
+    mapRef.current
+      ?.triggerRepaint();
+  }
 
 
   /*
@@ -159,7 +380,9 @@ export default function GameMap3D() {
   */
 
   useEffect(() => {
-    if (mapRef.current) {
+    if (
+      mapRef.current
+    ) {
       return;
     }
 
@@ -198,7 +421,7 @@ export default function GameMap3D() {
 
     /*
       ===================================
-      INTERAÇÕES
+      CONTROLES
       ===================================
     */
 
@@ -222,7 +445,7 @@ export default function GameMap3D() {
 
     /*
       ===================================
-      PERSPECTIVA PELO ZOOM
+      PERSPECTIVA
       ===================================
     */
 
@@ -230,24 +453,43 @@ export default function GameMap3D() {
       const zoom =
         map.getZoom();
 
-      const minZoom = 17;
-      const maxZoom = 21;
+      const minZoom =
+        17;
 
-      const minPitch = 35;
-      const maxPitch = 70;
+      const maxZoom =
+        21;
+
+      const minPitch =
+        35;
+
+      const maxPitch =
+        70;
+
 
       const progress =
-        (zoom - minZoom) /
-        (maxZoom - minZoom);
+        (
+          zoom -
+          minZoom
+        ) /
+        (
+          maxZoom -
+          minZoom
+        );
+
 
       const pitch =
         minPitch +
         progress *
-          (maxPitch - minPitch);
+          (
+            maxPitch -
+            minPitch
+          );
+
 
       map.setPitch(
         Math.max(
           minPitch,
+
           Math.min(
             maxPitch,
             pitch
@@ -261,6 +503,7 @@ export default function GameMap3D() {
       'zoom',
       atualizarPerspectiva
     );
+
 
     atualizarPerspectiva();
 
@@ -277,12 +520,14 @@ export default function GameMap3D() {
 
         /*
           ===================================
-          MAPA / CORES / PRÉDIOS
+          CORES DO MAPA
           ===================================
         */
 
         const layers =
-          map.getStyle().layers;
+          map.getStyle()
+            .layers;
+
 
         layers.forEach(
           (layer) => {
@@ -293,7 +538,9 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
+
                 'background-color',
+
                 '#dfe8c8'
               );
             }
@@ -305,7 +552,9 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
+
                 'fill-color',
+
                 '#cfd9b6'
               );
             }
@@ -317,7 +566,9 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
+
                 'line-color',
+
                 '#a8b28f'
               );
             }
@@ -329,30 +580,37 @@ export default function GameMap3D() {
             ) {
               map.setPaintProperty(
                 layer.id,
+
                 'fill-extrusion-color',
+
                 '#c8c3ae'
               );
 
+
               map.setPaintProperty(
                 layer.id,
+
                 'fill-extrusion-height',
+
                 1
               );
 
+
               map.setPaintProperty(
                 layer.id,
+
                 'fill-extrusion-base',
+
                 0
               );
             }
-
           }
         );
 
 
         /*
           ===================================
-          PLAYER / GNOME
+          PLAYER
           ===================================
         */
 
@@ -364,6 +622,7 @@ export default function GameMap3D() {
                 longitude,
                 latitude,
               ],
+
               0
             );
 
@@ -381,9 +640,11 @@ export default function GameMap3D() {
           rotateX:
             Math.PI / 2,
 
-          rotateY: 0,
+          rotateY:
+            0,
 
-          rotateZ: 0,
+          rotateZ:
+            0,
 
           scale:
             playerMercator
@@ -406,33 +667,43 @@ export default function GameMap3D() {
             '3d',
 
 
-          onAdd(map, gl) {
+          onAdd(
+            map,
+            gl
+          ) {
             this.camera =
               new THREE.Camera();
+
 
             this.scene =
               new THREE.Scene();
 
 
-            const hemisphereLight =
-              new THREE.HemisphereLight(
-                0xffffff,
-                0x444444,
-                2
-              );
+            const hemisphere =
+              new THREE
+                .HemisphereLight(
+                  0xffffff,
+
+                  0x444444,
+
+                  2
+                );
+
 
             this.scene.add(
-              hemisphereLight
+              hemisphere
             );
 
 
-            const directionalLight =
-              new THREE.DirectionalLight(
-                0xffffff,
-                2
-              );
+            const directional =
+              new THREE
+                .DirectionalLight(
+                  0xffffff,
+                  2
+                );
 
-            directionalLight
+
+            directional
               .position
               .set(
                 0,
@@ -440,8 +711,9 @@ export default function GameMap3D() {
                 100
               );
 
+
             this.scene.add(
-              directionalLight
+              directional
             );
 
 
@@ -453,19 +725,10 @@ export default function GameMap3D() {
               `${import.meta.env.BASE_URL}models/gnome.glb`,
 
               (gltf) => {
-                console.log(
-                  'GNOME CARREGOU!'
-                );
-
-                gltf.scene.scale.set(
-                  1,
-                  1,
-                  1
-                );
-
                 this.scene.add(
                   gltf.scene
                 );
+
 
                 map.triggerRepaint();
               },
@@ -474,7 +737,8 @@ export default function GameMap3D() {
 
               (error) => {
                 console.error(
-                  'ERRO AO CARREGAR GNOME:',
+                  'ERRO GNOME:',
+
                   error
                 );
               }
@@ -482,43 +746,59 @@ export default function GameMap3D() {
 
 
             this.renderer =
-              new THREE.WebGLRenderer({
-                canvas:
-                  map.getCanvas(),
+              new THREE
+                .WebGLRenderer({
+                  canvas:
+                    map.getCanvas(),
 
-                context: gl,
+                  context:
+                    gl,
 
-                antialias: true,
-              });
+                  antialias:
+                    true,
+                });
 
 
-            this.renderer.autoClear =
+            this.renderer
+              .autoClear =
               false;
           },
 
 
-          render(gl, args) {
-            const rotationX =
-              new THREE.Matrix4()
+          render(
+            gl,
+            args
+          ) {
+            const rx =
+              new THREE
+                .Matrix4()
                 .makeRotationX(
-                  playerTransform.rotateX
+                  playerTransform
+                    .rotateX
                 );
 
-            const rotationY =
-              new THREE.Matrix4()
+
+            const ry =
+              new THREE
+                .Matrix4()
                 .makeRotationY(
-                  playerTransform.rotateY
+                  playerTransform
+                    .rotateY
                 );
 
-            const rotationZ =
-              new THREE.Matrix4()
+
+            const rz =
+              new THREE
+                .Matrix4()
                 .makeRotationZ(
-                  playerTransform.rotateZ
+                  playerTransform
+                    .rotateZ
                 );
 
 
             const m =
-              new THREE.Matrix4()
+              new THREE
+                .Matrix4()
                 .fromArray(
                   args
                     .defaultProjectionData
@@ -527,47 +807,63 @@ export default function GameMap3D() {
 
 
             const l =
-              new THREE.Matrix4()
+              new THREE
+                .Matrix4()
+
                 .makeTranslation(
-                  playerTransform.translateX,
-                  playerTransform.translateY,
-                  playerTransform.translateZ
+                  playerTransform
+                    .translateX,
+
+                  playerTransform
+                    .translateY,
+
+                  playerTransform
+                    .translateZ
                 )
 
                 .scale(
                   new THREE.Vector3(
-                    playerTransform.scale,
-                    -playerTransform.scale,
-                    playerTransform.scale
+                    playerTransform
+                      .scale,
+
+                    -playerTransform
+                      .scale,
+
+                    playerTransform
+                      .scale
                   )
                 )
 
                 .multiply(
-                  rotationX
+                  rx
                 )
 
                 .multiply(
-                  rotationY
+                  ry
                 )
 
                 .multiply(
-                  rotationZ
+                  rz
                 );
 
 
             this.camera
               .projectionMatrix =
-              m.multiply(l);
+              m.multiply(
+                l
+              );
 
 
             this.renderer
               .resetState();
 
 
-            this.renderer.render(
-              this.scene,
-              this.camera
-            );
+            this.renderer
+              .render(
+                this.scene,
+
+                this.camera
+              );
 
 
             map.triggerRepaint();
@@ -588,32 +884,49 @@ export default function GameMap3D() {
 
         /*
           ===================================
-          FUNÇÃO GENÉRICA DO POPUP
+          POPUP
           ===================================
         */
 
         function abrirEncontro(
-          encounter,
-          encounterPosition
+          encounter
         ) {
+          const state =
+            encountersRef
+              .current[
+                encounter.id
+              ];
+
+
+          if (
+            !state
+              ?.position
+          ) {
+            return;
+          }
+
+
           popupRef.current
             ?.remove();
 
 
-          const popupContent =
-            document.createElement(
-              'div'
-            );
+          const container =
+            document
+              .createElement(
+                'div'
+              );
 
 
-          popupContent.style.minWidth =
+          container.style
+            .minWidth =
             '180px';
 
 
           const title =
-            document.createElement(
-              'strong'
-            );
+            document
+              .createElement(
+                'strong'
+              );
 
 
           title.textContent =
@@ -621,13 +934,14 @@ export default function GameMap3D() {
 
 
           const text =
-            document.createElement(
-              'p'
-            );
+            document
+              .createElement(
+                'p'
+              );
 
 
           text.textContent =
-            `Você encontrou: ${encounter.name}!`;
+            `Você encontrou ${encounter.name}!`;
 
 
           text.style.margin =
@@ -635,76 +949,81 @@ export default function GameMap3D() {
 
 
           const button =
-            document.createElement(
-              'button'
-            );
+            document
+              .createElement(
+                'button'
+              );
 
 
           button.textContent =
             'Observar em AR';
 
 
-          button.style.cursor =
-            'pointer';
-
-
           button.style.padding =
             '8px 12px';
 
 
+          button.style.cursor =
+            'pointer';
+
+
           button.addEventListener(
             'click',
+
             () => {
               popupRef.current
                 ?.remove();
 
 
               /*
-                activeEncounterId já é salvo
-                quando o animal é encontrado.
+                Passamos o animal
+                diretamente na URL.
+
+                Não dependemos do store
+                para o AR saber quem é.
               */
 
-              navigate('/ar');
+              navigate(
+                `/ar?animal=${encounter.id}`
+              );
             }
           );
 
 
-          popupContent.appendChild(
-            title
-          );
-
-          popupContent.appendChild(
-            text
-          );
-
-          popupContent.appendChild(
+          container.append(
+            title,
+            text,
             button
           );
 
 
           popupRef.current =
-            new maplibregl.Popup({
-              offset: 35,
+            new maplibregl
+              .Popup({
+                offset:
+                  35,
 
-              closeButton:
-                true,
-            })
+                closeButton:
+                  true,
+              })
 
               .setLngLat(
-                encounterPosition
+                state.position
               )
 
               .setDOMContent(
-                popupContent
+                container
               )
 
-              .addTo(map);
+              .addTo(
+                map
+              );
         }
 
 
         /*
           ===================================
-          CRIA TODOS OS ANIMAIS
+          ANIMAIS
           ===================================
         */
 
@@ -716,49 +1035,39 @@ export default function GameMap3D() {
           )
 
           .forEach(
-            (
-              encounter,
-              index
-            ) => {
+            (encounter) => {
 
               /*
-                POSIÇÃO
+                Estado inicial invisível.
+
+                Depois que GPS + mapa
+                estiverem disponíveis,
+                anchorEncounters()
+                posiciona tudo.
               */
 
-              const encounterPosition =
-                getEncounterPosition(
-                  encounter,
-                  latitude,
-                  longitude
-                );
-
-
-              /*
-                MERCATOR
-              */
-
-              const encounterMercator =
+              const mercator =
                 maplibregl
                   .MercatorCoordinate
                   .fromLngLat(
-                    encounterPosition,
+                    [
+                      longitude,
+                      latitude,
+                    ],
+
                     0
                   );
 
 
-              /*
-                TRANSFORM
-              */
-
-              const encounterTransform = {
+              const transform = {
                 translateX:
-                  encounterMercator.x,
+                  mercator.x,
 
                 translateY:
-                  encounterMercator.y,
+                  mercator.y,
 
                 translateZ:
-                  encounterMercator.z,
+                  mercator.z,
 
                 rotateX:
                   Math.PI / 2,
@@ -770,41 +1079,31 @@ export default function GameMap3D() {
                   0,
 
                 scale:
-                  encounterMercator
+                  mercator
                     .meterInMercatorCoordinateUnits() *
-                  (encounter.mapScale ?? 1),
+                  (
+                    encounter
+                      .mapScale ??
+                    1
+                  ),
               };
 
 
-              /*
-                Guarda o estado
-                individual do animal.
-              */
+              encountersRef
+                .current[
+                  encounter.id
+                ] = {
+                  position:
+                    null,
 
-              encountersRef.current[
-                encounter.id
-              ] = {
-                position:
-                  encounterPosition,
+                  transform,
 
-                transform:
-                  encounterTransform,
-
-                visible:
-                  false,
-
-                model:
-                  null,
-              };
+                  visible:
+                    false,
+                };
 
 
-              /*
-                ===================================
-                LAYER DO ANIMAL
-                ===================================
-              */
-
-              const encounterLayer = {
+              const animalLayer = {
                 id:
                   `encounter-${encounter.id}`,
 
@@ -815,13 +1114,18 @@ export default function GameMap3D() {
                   '3d',
 
 
-                onAdd(map, gl) {
+                onAdd(
+                  map,
+                  gl
+                ) {
                   this.camera =
-                    new THREE.Camera();
+                    new THREE
+                      .Camera();
 
 
                   this.scene =
-                    new THREE.Scene();
+                    new THREE
+                      .Scene();
 
 
                   this.model =
@@ -829,30 +1133,36 @@ export default function GameMap3D() {
 
 
                   this.raycaster =
-                    new THREE.Raycaster();
+                    new THREE
+                      .Raycaster();
 
 
-                  const hemisphereLight =
-                    new THREE.HemisphereLight(
-                      0xffffff,
-                      0x444444,
-                      2.5
-                    );
+                  const hemisphere =
+                    new THREE
+                      .HemisphereLight(
+                        0xffffff,
+
+                        0x444444,
+
+                        2.5
+                      );
 
 
                   this.scene.add(
-                    hemisphereLight
+                    hemisphere
                   );
 
 
-                  const directionalLight =
-                    new THREE.DirectionalLight(
-                      0xffffff,
-                      2
-                    );
+                  const directional =
+                    new THREE
+                      .DirectionalLight(
+                        0xffffff,
+
+                        2
+                      );
 
 
-                  directionalLight
+                  directional
                     .position
                     .set(
                       0,
@@ -862,13 +1172,9 @@ export default function GameMap3D() {
 
 
                   this.scene.add(
-                    directionalLight
+                    directional
                   );
 
-
-                  /*
-                    CARREGA O MODELO
-                  */
 
                   const loader =
                     new GLTFLoader();
@@ -878,23 +1184,17 @@ export default function GameMap3D() {
                     `${import.meta.env.BASE_URL}models/${encounter.model}`,
 
                     (gltf) => {
-                      console.log(
-                        `${encounter.name} CARREGOU!`
-                      );
-
-
                       this.model =
                         gltf.scene;
 
 
-                      encountersRef.current[
-                        encounter.id
-                      ].model =
-                        this.model;
-
-
                       this.scene.add(
                         this.model
+                      );
+
+
+                      console.log(
+                        `${encounter.name} CARREGOU`
                       );
 
 
@@ -905,31 +1205,30 @@ export default function GameMap3D() {
 
                     (error) => {
                       console.error(
-                        `ERRO AO CARREGAR ${encounter.name}:`,
+                        `ERRO ${encounter.name}:`,
+
                         error
                       );
                     }
                   );
 
 
-                  /*
-                    RENDERER
-                  */
-
                   this.renderer =
-                    new THREE.WebGLRenderer({
-                      canvas:
-                        map.getCanvas(),
+                    new THREE
+                      .WebGLRenderer({
+                        canvas:
+                          map.getCanvas(),
 
-                      context:
-                        gl,
+                        context:
+                          gl,
 
-                      antialias:
-                        true,
-                    });
+                        antialias:
+                          true,
+                      });
 
 
-                  this.renderer.autoClear =
+                  this.renderer
+                    .autoClear =
                     false;
 
 
@@ -941,15 +1240,15 @@ export default function GameMap3D() {
 
                   this.handleClick =
                     (event) => {
-
-                      const encounterState =
-                        encountersRef.current[
-                          encounter.id
-                        ];
+                      const state =
+                        encountersRef
+                          .current[
+                            encounter.id
+                          ];
 
 
                       if (
-                        !encounterState
+                        !state
                           ?.visible
                       ) {
                         return;
@@ -985,65 +1284,82 @@ export default function GameMap3D() {
                         1;
 
 
-                      const inverseProjection =
+                      const inverse =
                         this.camera
                           .projectionMatrix
                           .clone()
                           .invert();
 
 
-                      const nearPoint =
-                        new THREE.Vector3(
-                          mouseX,
-                          mouseY,
-                          -1
-                        ).applyMatrix4(
-                          inverseProjection
-                        );
+                      const near =
+                        new THREE
+                          .Vector3(
+                            mouseX,
+                            mouseY,
+                            -1
+                          )
+
+                          .applyMatrix4(
+                            inverse
+                          );
 
 
-                      const farPoint =
-                        new THREE.Vector3(
-                          mouseX,
-                          mouseY,
-                          1
-                        ).applyMatrix4(
-                          inverseProjection
-                        );
+                      const far =
+                        new THREE
+                          .Vector3(
+                            mouseX,
+                            mouseY,
+                            1
+                          )
+
+                          .applyMatrix4(
+                            inverse
+                          );
 
 
                       const direction =
-                        farPoint
+                        far
                           .clone()
+
                           .sub(
-                            nearPoint
+                            near
                           )
+
                           .normalize();
 
 
-                      this.raycaster.set(
-                        nearPoint,
-                        direction
-                      );
+                      this.raycaster
+                        .set(
+                          near,
+                          direction
+                        );
 
 
-                      const intersections =
+                      const hits =
                         this.raycaster
                           .intersectObject(
                             this.model,
+
                             true
                           );
 
 
                       if (
-                        intersections.length >
+                        hits.length >
                         0
                       ) {
                         console.log(
                           'ANIMAL ENCONTRADO:',
+
                           encounter.id
                         );
 
+
+                        /*
+                          Mantemos o store
+                          funcionando para
+                          progresso/missão.
+                        */
 
                         markAnimalFound(
                           encounter.id
@@ -1051,8 +1367,7 @@ export default function GameMap3D() {
 
 
                         abrirEncontro(
-                          encounter,
-                          encounterPosition
+                          encounter
                         );
                       }
                     };
@@ -1060,21 +1375,25 @@ export default function GameMap3D() {
 
                   map.on(
                     'click',
+
                     this.handleClick
                   );
                 },
 
 
-                render(gl, args) {
-
-                  const encounterState =
-                    encountersRef.current[
-                      encounter.id
-                    ];
+                render(
+                  gl,
+                  args
+                ) {
+                  const state =
+                    encountersRef
+                      .current[
+                        encounter.id
+                      ];
 
 
                   if (
-                    !encounterState
+                    !state
                       ?.visible
                   ) {
                     return;
@@ -1082,33 +1401,39 @@ export default function GameMap3D() {
 
 
                   const transform =
-                    encounterState
-                      .transform;
+                    state.transform;
 
 
-                  const rotationX =
-                    new THREE.Matrix4()
+                  const rx =
+                    new THREE
+                      .Matrix4()
                       .makeRotationX(
-                        transform.rotateX
+                        transform
+                          .rotateX
                       );
 
 
-                  const rotationY =
-                    new THREE.Matrix4()
+                  const ry =
+                    new THREE
+                      .Matrix4()
                       .makeRotationY(
-                        transform.rotateY
+                        transform
+                          .rotateY
                       );
 
 
-                  const rotationZ =
-                    new THREE.Matrix4()
+                  const rz =
+                    new THREE
+                      .Matrix4()
                       .makeRotationZ(
-                        transform.rotateZ
+                        transform
+                          .rotateZ
                       );
 
 
                   const m =
-                    new THREE.Matrix4()
+                    new THREE
+                      .Matrix4()
                       .fromArray(
                         args
                           .defaultProjectionData
@@ -1117,38 +1442,52 @@ export default function GameMap3D() {
 
 
                   const l =
-                    new THREE.Matrix4()
+                    new THREE
+                      .Matrix4()
 
                       .makeTranslation(
-                        transform.translateX,
-                        transform.translateY,
-                        transform.translateZ
+                        transform
+                          .translateX,
+
+                        transform
+                          .translateY,
+
+                        transform
+                          .translateZ
                       )
 
                       .scale(
-                        new THREE.Vector3(
-                          transform.scale,
-                          -transform.scale,
-                          transform.scale
-                        )
+                        new THREE
+                          .Vector3(
+                            transform
+                              .scale,
+
+                            -transform
+                              .scale,
+
+                            transform
+                              .scale
+                          )
                       )
 
                       .multiply(
-                        rotationX
+                        rx
                       )
 
                       .multiply(
-                        rotationY
+                        ry
                       )
 
                       .multiply(
-                        rotationZ
+                        rz
                       );
 
 
                   this.camera
                     .projectionMatrix =
-                    m.multiply(l);
+                    m.multiply(
+                      l
+                    );
 
 
                   this.camera
@@ -1166,23 +1505,30 @@ export default function GameMap3D() {
                     .resetState();
 
 
-                  this.renderer.render(
-                    this.scene,
-                    this.camera
-                  );
+                  this.renderer
+                    .render(
+                      this.scene,
+
+                      this.camera
+                    );
 
 
                   map.triggerRepaint();
                 },
 
 
-                onRemove(map) {
+                onRemove(
+                  map
+                ) {
                   if (
-                    this.handleClick
+                    this
+                      .handleClick
                   ) {
                     map.off(
                       'click',
-                      this.handleClick
+
+                      this
+                        .handleClick
                     );
                   }
 
@@ -1193,39 +1539,23 @@ export default function GameMap3D() {
               };
 
 
-              /*
-                Adiciona a layer
-              */
-
               map.addLayer(
-                encounterLayer
+                animalLayer
               );
-
-
-              /*
-                ===================================
-                VISIBILIDADE INICIAL
-                ===================================
-              */
-
-              const distance =
-                calcularDistancia(
-                  latitude,
-                  longitude,
-
-                  encounterPosition[1],
-                  encounterPosition[0]
-                );
-
-
-              encountersRef.current[
-                encounter.id
-              ].visible =
-                distance <=
-                (encounter.radius ?? 30);
-
             }
           );
+
+
+        /*
+          MUITO IMPORTANTE:
+
+          O mapa pode terminar
+          depois que o GPS já chegou.
+
+          Então tentamos ancorar aqui também.
+        */
+
+        anchorEncounters();
 
 
         map.triggerRepaint();
@@ -1246,6 +1576,7 @@ export default function GameMap3D() {
 
       map.off(
         'zoom',
+
         atualizarPerspectiva
       );
 
@@ -1259,7 +1590,12 @@ export default function GameMap3D() {
 
       encountersRef.current =
         {};
+
+
+      encountersAnchoredRef.current =
+        false;
     };
+
   }, [
     navigate,
     markAnimalFound,
@@ -1268,12 +1604,41 @@ export default function GameMap3D() {
 
   /*
     ===================================
-    GPS / MOVIMENTO
+    GPS REAL CHEGOU
     ===================================
   */
 
   useEffect(() => {
+    latestGpsRef.current = {
+      latitude,
+      longitude,
+      hasRealPosition,
+    };
 
+
+    /*
+      O GPS pode terminar depois
+      que o mapa já carregou.
+
+      Então tentamos ancorar aqui.
+    */
+
+    anchorEncounters();
+
+  }, [
+    latitude,
+    longitude,
+    hasRealPosition,
+  ]);
+
+
+  /*
+    ===================================
+    MOVIMENTO DO PLAYER
+    ===================================
+  */
+
+  useEffect(() => {
     if (
       !mapRef.current
     ) {
@@ -1282,27 +1647,29 @@ export default function GameMap3D() {
 
 
     /*
-      CENTRALIZA NO PLAYER
+      Centraliza mapa
+      no jogador.
     */
 
-    mapRef.current.easeTo({
-      center: [
-        longitude,
-        latitude,
-      ],
+    mapRef.current
+      .easeTo({
+        center: [
+          longitude,
+          latitude,
+        ],
 
-      duration: 700,
-    });
+        duration:
+          700,
+      });
 
 
     /*
-      ===================================
-      PLAYER
-      ===================================
+      Move o Gnome.
     */
 
     if (
-      playerTransformRef.current
+      playerTransformRef
+        .current
     ) {
       const position =
         maplibregl
@@ -1312,57 +1679,61 @@ export default function GameMap3D() {
               longitude,
               latitude,
             ],
+
             0
           );
 
 
-      playerTransformRef.current
+      playerTransformRef
+        .current
         .translateX =
         position.x;
 
 
-      playerTransformRef.current
+      playerTransformRef
+        .current
         .translateY =
         position.y;
 
 
-      playerTransformRef.current
+      playerTransformRef
+        .current
         .translateZ =
         position.z;
 
 
-      playerTransformRef.current
+      playerTransformRef
+        .current
         .scale =
         position
           .meterInMercatorCoordinateUnits();
 
 
-      /*
-        Temporariamente sem heading.
-      */
-
-      playerTransformRef.current
-        .rotateZ = 0;
+      playerTransformRef
+        .current
+        .rotateZ =
+        0;
     }
 
 
     /*
       ===================================
-      PROXIMIDADE DOS ANIMAIS
+      DISTÂNCIA DOS ANIMAIS
       ===================================
     */
 
     encounters.forEach(
       (encounter) => {
-
-        const encounterState =
-          encountersRef.current[
-            encounter.id
-          ];
+        const state =
+          encountersRef
+            .current[
+              encounter.id
+            ];
 
 
         if (
-          !encounterState
+          !state ||
+          !state.position
         ) {
           return;
         }
@@ -1372,7 +1743,7 @@ export default function GameMap3D() {
           encounterLongitude,
           encounterLatitude,
         ] =
-          encounterState.position;
+          state.position;
 
 
         const distance =
@@ -1385,47 +1756,15 @@ export default function GameMap3D() {
           );
 
 
-        encounterState.visible =
+        state.visible =
           distance <=
-          (encounter.radius ?? 30);
-
+          (
+            encounter
+              .revealRadius ??
+            40
+          );
       }
     );
-
-
-    /*
-      Se o jogador saiu do raio
-      do animal cujo popup está aberto,
-      por enquanto fechamos qualquer popup.
-    */
-
-    if (
-      popupRef.current
-    ) {
-
-      const popupPosition =
-        popupRef.current
-          .getLngLat();
-
-
-      const popupDistance =
-        calcularDistancia(
-          latitude,
-          longitude,
-
-          popupPosition.lat,
-          popupPosition.lng
-        );
-
-
-      if (
-        popupDistance >
-        30
-      ) {
-        popupRef.current
-          .remove();
-      }
-    }
 
 
     mapRef.current
@@ -1439,7 +1778,9 @@ export default function GameMap3D() {
 
   return (
     <div
-      ref={mapContainer}
+      ref={
+        mapContainer
+      }
 
       style={{
         width:

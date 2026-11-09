@@ -4,28 +4,23 @@ export const encounters = [
     type: 'animal',
 
     name: 'Capivara',
-    scientificName: 'Hydrochoerus hydrochaeris',
+    scientificName:
+      'Hydrochoerus hydrochaeris',
 
     model: 'capybara.glb',
     arModel: 'capybara.usdz',
 
-    // Escala exagerada no mapa para facilitar visualização/clique
     mapScale: 14,
-
-    // Escala realista no AR
     arScale: 1,
-
-    radius: 30,
 
     rarity: 'common',
     spawnChance: 0.6,
 
-    position: null,
+    // posição relativa ao jogador
+    spawnDistance: 18,
+    spawnBearing: 0,
 
-    testOffset: {
-      latitude: 0.00011,
-      longitude: 0,
-    },
+    revealRadius: 40,
   },
 
   {
@@ -37,20 +32,16 @@ export const encounters = [
     model: 'jackrabbit.glb',
     arModel: 'jackrabbit.usdz',
 
-    mapScale: 10,
+    mapScale: 12,
     arScale: 1,
-
-    radius: 30,
 
     rarity: 'uncommon',
     spawnChance: 0.3,
 
-    position: null,
+    spawnDistance: 22,
+    spawnBearing: 120,
 
-    testOffset: {
-      latitude: -0.00009,
-      longitude: 0.00009,
-    },
+    revealRadius: 40,
   },
 
   {
@@ -62,19 +53,15 @@ export const encounters = [
     model: 'riverotter.glb',
     arModel: 'riverotter.usdz',
 
-    mapScale: 12,
+    mapScale: 13,
     arScale: 1,
-
-    radius: 30,
 
     rarity: 'rare',
     spawnChance: 0.1,
 
-    position: null,
+    spawnDistance: 26,
+    spawnBearing: 240,
 
-    testOffset: {
-      latitude: 0.00004,
-      longitude: -0.00012,
-    },
+    revealRadius: 40,
   },
 ];

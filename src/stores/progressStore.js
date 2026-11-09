@@ -46,12 +46,14 @@ export const useProgressStore = create(
 
       markAnimalFound: (animalId) =>
         set((state) => ({
-          activeEncounterId: animalId,
+          activeEncounterId:
+            animalId,
 
           firstSteps: {
             ...state.firstSteps,
 
-            foundAnimal: true,
+            foundAnimal:
+              true,
           },
         })),
 
