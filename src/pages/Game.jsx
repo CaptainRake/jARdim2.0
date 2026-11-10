@@ -1,6 +1,7 @@
 import GameMap3D from '../components/map/GameMap3D';
 import GameHUD from '../components/ui/GameHUD';
 import TutorialOverlay from '../components/ui/TutorialOverlay';
+import TrashPopup from '../components/ui/TrashPopup';
 
 import { useGPS } from '../hooks/useGPS';
 import { useOnboardingStore } from '../stores/onboardingStore';
@@ -23,6 +24,8 @@ export default function Game() {
       />
 
       <GameHUD />
+
+      <TrashPopup />
 
       {!hasCompletedTutorial && (
         <TutorialOverlay />

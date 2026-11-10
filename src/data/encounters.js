@@ -1,54 +1,207 @@
 export const encounters = [
   {
-    id: 'capivara',
-    type: 'animal',
+    id: 'capybara',
 
-    name: 'Capivara',
+    name:
+      'Capivara',
+
     scientificName:
       'Hydrochoerus hydrochaeris',
 
-    model: 'capybara.glb',
-    arModel: 'capybara.usdz',
+    type:
+      'animal',
 
-    mapScale: 14,
-    arScale: 1,
+    model:
+      'capybara.glb',
 
-    rarity: 'common',
+    rarity:
+      'common',
 
-    weight: 50,
+    weight:
+      50,
+
+    mapScale:
+      12,
+
+    description:
+      'A capivara, também conhecida como carpincho, é um mamífero roedor da família Caviidae. É o maior roedor vivo e ocorre em ambientes associados à água, como rios, lagos e áreas alagadas.',
+
+    facts: [
+      {
+        label:
+          'Nome científico',
+
+        value:
+          'Hydrochoerus hydrochaeris',
+      },
+
+      {
+        label:
+          'Peso',
+
+        value:
+          '35 – 66 kg (adulto)',
+      },
+
+      {
+        label:
+          'Comprimento',
+
+        value:
+          '1,1 – 1,3 m (adulto)',
+      },
+
+      {
+        label:
+          'Nível trófico',
+
+        value:
+          'Herbívoro',
+      },
+
+      {
+        label:
+          'Período de gestação',
+
+        value:
+          '130 – 150 dias',
+      },
+    ],
   },
 
+
   {
-    id: 'jackrabbit',
-    type: 'animal',
+    id:
+      'jackrabbit',
 
-    name: 'Lebre',
+    name:
+      'Lebre-europeia',
 
-    model: 'jackrabbit.glb',
-    arModel: 'jackrabbit.usdz',
+    scientificName:
+      'Lepus europaeus',
 
-    mapScale: 12,
-    arScale: 1,
+    type:
+      'animal',
 
-    rarity: 'uncommon',
+    model:
+      'jackrabbit.glb',
 
-    weight: 30,
+    rarity:
+      'uncommon',
+
+    weight:
+      30,
+
+    mapScale:
+      12,
+
+    description:
+      'A lebre-europeia é um mamífero bastante conhecido, encontrado principalmente em ambientes abertos. De origem esteparia, adapta-se bem a áreas agrícolas e pouco urbanizadas.',
+
+    facts: [
+      {
+        label:
+          'Nome científico',
+
+        value:
+          'Lepus europaeus',
+      },
+
+      {
+        label:
+          'Comprimento',
+
+        value:
+          '53 cm (adulto)',
+      },
+
+      {
+        label:
+          'Peso',
+
+        value:
+          '3,8 kg (adulto)',
+      },
+
+      {
+        label:
+          'Período de gestação',
+
+        value:
+          '41 – 42 dias',
+      },
+
+      {
+        label:
+          'Estado de conservação',
+
+        value:
+          'Pouco preocupante (decrescente)',
+      },
+    ],
   },
 
+
   {
-    id: 'riverotter',
-    type: 'animal',
+    id:
+      'riverotter',
 
-    name: 'Lontra',
+    name:
+      'Lontra-neotropical',
 
-    model: 'riverotter.glb',
-    arModel: 'riverotter.usdz',
+    scientificName:
+      'Lontra longicaudis',
 
-    mapScale: 13,
-    arScale: 1,
+    type:
+      'animal',
 
-    rarity: 'rare',
+    model:
+      'riverotter.glb',
 
-    weight: 20,
+    rarity:
+      'rare',
+
+    weight:
+      20,
+
+    mapScale:
+      12,
+
+    description:
+      'A lontra-neotropical, também chamada de lobinho-do-rio, é um mamífero da família dos mustelídeos. Ocorre da América Central à América do Sul e vive associada a rios, lagos e lagoas em diferentes ecossistemas.',
+
+    facts: [
+      {
+        label:
+          'Nome científico',
+
+        value:
+          'Lontra longicaudis',
+      },
+
+      {
+        label:
+          'Comprimento',
+
+        value:
+          '60 cm (adulto)',
+      },
+
+      {
+        label:
+          'Peso',
+
+        value:
+          '6,6 kg (adulto)',
+      },
+
+      {
+        label:
+          'Nível trófico',
+
+        value:
+          'Carnívoro',
+      },
+    ],
   },
 ];

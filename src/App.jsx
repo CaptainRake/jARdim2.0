@@ -14,9 +14,14 @@ import Game from './pages/Game';
 import BackpackSelect from './pages/BackpackSelect';
 import Intro from './pages/Intro';
 import Shop from './pages/Shop';
+import MissionNotifications from './components/MissionNotifications';
+import ExplorerSetup from './pages/ExplorerSetup';
 
 export default function App() {
   return (
+    <>
+    <MissionNotifications />
+
     <Routes>
       <Route path="/" element={<Splash />} />
       <Route path="/enter" element={<Enter />} />
@@ -32,6 +37,9 @@ export default function App() {
       <Route path="/backpack-select" element={<BackpackSelect />} />
       <Route path="/intro" element={<Intro />} />
       <Route path="/shop" element={<Shop />} />
+      <Route path="/explorer-setup" element={<ExplorerSetup />} />
+
     </Routes>
+    </>
   );
 }

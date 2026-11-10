@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, } from 'zustand/middleware';
 
 export const useEncounterStore = create(
   persist(
@@ -73,6 +73,12 @@ export const useEncounterStore = create(
               10 * 60 * 1000,
           },
         })),
+      
+      expireEncounter: () =>
+        set({
+          activeEncounter: null,
+          lastEncounterAt: Date.now(),
+        }),
 
 
       clearActiveEncounter: () =>
@@ -93,6 +99,11 @@ export const useEncounterStore = create(
 
     {
       name: 'rebrota-encounters',
+
+      storage:
+        createJSONStorage(
+          () => sessionStorage
+        ),
     }
   )
 );

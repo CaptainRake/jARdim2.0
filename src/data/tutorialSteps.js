@@ -15,7 +15,7 @@ export const tutorialSteps = [
 
   {
     id: 'missions',
-    text: 'Aqui você acompanha suas missões e objetivos atuais.',
+    text: 'Aqui você acompanha suas missões e objetivos. A bolinha vermelha indica uma nova missão ou novidade nos seus desafios.',
     target: 'missions',
     cardPosition: 'left',
   },

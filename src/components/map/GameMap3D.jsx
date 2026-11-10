@@ -33,6 +33,14 @@ import {
   useEncounterStore,
 } from '../../stores/encounterStore';
 
+import {
+  trashItems,
+} from '../../data/trash';
+
+import {
+  useTrashStore,
+} from '../../stores/trashStore';
+
 
 /*
   =========================================================
@@ -48,6 +56,9 @@ const MIN_DISTANCE_FOR_SPAWN = 10;
   2 minutos
 */
 
+const IDLE_SPAWN_INTERVAL =
+  20 * 1000;
+
 const SPAWN_COOLDOWN =
   10 * 1000;
 
@@ -57,6 +68,9 @@ const SPAWN_COOLDOWN =
   faz uma nova tentativa a cada
   20 metros.
 */
+
+const ENCOUNTER_DURATION =
+  20 * 1000;
 
 const DISTANCE_BETWEEN_ROLLS = 5;
 
@@ -68,6 +82,13 @@ const DISTANCE_BETWEEN_ROLLS = 5;
 */
 
 const ENCOUNTER_CHANCE = 1;
+
+/*
+  Entre os spawns que realmente acontecem:
+  70% animal / 30% resíduo.
+*/
+const ANIMAL_SPAWN_WEIGHT = 70;
+const TRASH_SPAWN_WEIGHT = 30;
 
 
 /*
@@ -85,7 +106,7 @@ const MAX_SPAWN_DISTANCE = 30;
 
 const REVEAL_RADIUS = 40;
 
-const INTERACTION_RADIUS = 18;
+const INTERACTION_RADIUS = 30;
 
 const DESPAWN_RADIUS = 80;
 
@@ -337,6 +358,39 @@ function escolherAnimal(
 }
 
 
+function escolherResiduo() {
+  const totalWeight =
+    trashItems.reduce(
+      (total, item) =>
+        total +
+        (item.weight ?? 1),
+      0
+    );
+
+
+  let random =
+    Math.random() *
+    totalWeight;
+
+
+  for (
+    const item of
+    trashItems
+  ) {
+    random -=
+      item.weight ?? 1;
+
+
+    if (random <= 0) {
+      return item;
+    }
+  }
+
+
+  return trashItems[0];
+}
+
+
 /*
   =========================================================
   COMPONENTE
@@ -346,6 +400,20 @@ function escolherAnimal(
 export default function GameMap3D() {
   const navigate =
     useNavigate();
+
+  
+  const trashOnMap =
+    useTrashStore(
+      (state) =>
+        state.trashOnMap
+    );
+
+
+  const setTrashOnMap =
+    useTrashStore(
+      (state) =>
+        state.setTrashOnMap
+    );
 
 
   /*
@@ -429,16 +497,32 @@ export default function GameMap3D() {
         state.endEncounter
     );
 
+  const expireEncounter =
+    useEncounterStore(
+      (state) =>
+        state.expireEncounter
+    );
+
 
   /*
     REFS DO MAPA
   */
+
+  const trashLayersRef =
+    useRef({});
+
 
   const mapContainer =
     useRef(null);
 
   const mapRef =
     useRef(null);
+  
+  const latestPositionRef =
+    useRef({
+      latitude,
+      longitude,
+    });
 
   const playerTransformRef =
     useRef(null);
@@ -493,6 +577,119 @@ export default function GameMap3D() {
 
   }, [
     activeEncounter,
+  ]);
+
+  useEffect(() => {
+    latestPositionRef.current = {
+      latitude,
+      longitude,
+    };
+  }, [
+    latitude,
+    longitude,
+  ]);
+
+  useEffect(() => {
+    const trash =
+      trashOnMap[0];
+
+
+    if (!trash) {
+      return;
+    }
+
+
+    const elapsed =
+      Date.now() -
+      (trash.createdAt ?? Date.now());
+
+
+    const remaining =
+      Math.max(
+        ENCOUNTER_DURATION -
+          elapsed,
+        0
+      );
+
+
+    const timer =
+      setTimeout(() => {
+        console.log(
+          'O resíduo saiu do encontro.'
+        );
+
+
+        setTrashOnMap([]);
+
+        expireEncounter();
+
+        distanceTravelledRef.current =
+          0;
+
+        distanceAtLastRollRef.current =
+          0;
+
+        mapRef.current
+          ?.triggerRepaint();
+      }, remaining);
+
+
+    return () =>
+      clearTimeout(timer);
+
+  }, [
+    trashOnMap,
+    setTrashOnMap,
+    expireEncounter,
+  ]);
+
+
+  useEffect(() => {
+    if (!activeEncounter) {
+      return;
+    }
+
+    const elapsed =
+      Date.now() -
+      activeEncounter.createdAt;
+
+    const remaining =
+      Math.max(
+        ENCOUNTER_DURATION -
+          elapsed,
+        0
+      );
+
+    const timer =
+      setTimeout(() => {
+        console.log(
+          'O encontro expirou.'
+        );
+
+        expireEncounter();
+
+        activeEncounterRef.current =
+          null;
+
+        distanceTravelledRef.current =
+          0;
+
+        distanceAtLastRollRef.current =
+          0;
+
+        popupRef.current
+          ?.remove();
+
+        mapRef.current
+          ?.triggerRepaint();
+      }, remaining);
+
+    return () =>
+      clearTimeout(timer);
+
+  }, [
+    activeEncounter,
+    expireEncounter,
   ]);
 
 
@@ -586,7 +783,7 @@ export default function GameMap3D() {
     =========================================================
   */
 
-  function tentarSpawn() {
+  function tentarSpawn(forceSpawn = false) {
     if (
       spawnLockRef.current
     ) {
@@ -606,7 +803,11 @@ export default function GameMap3D() {
     */
 
     if (
-      activeEncounterRef.current
+      activeEncounterRef.current ||
+      useTrashStore
+        .getState()
+        .trashOnMap
+        .length > 0
     ) {
       return;
     }
@@ -617,9 +818,9 @@ export default function GameMap3D() {
     */
 
     if (
-      distanceTravelledRef
-        .current <
-      MIN_DISTANCE_FOR_SPAWN
+      !forceSpawn &&
+      distanceTravelledRef.current <
+        MIN_DISTANCE_FOR_SPAWN
     ) {
       return;
     }
@@ -630,12 +831,12 @@ export default function GameMap3D() {
     */
 
     if (
+      !forceSpawn &&
       lastEncounterAt > 0
     ) {
       const elapsed =
         Date.now() -
         lastEncounterAt;
-
 
       if (
         elapsed <
@@ -655,8 +856,8 @@ export default function GameMap3D() {
     */
 
     if (
-      distanceAtLastRollRef
-        .current !== 0
+      !forceSpawn &&
+      distanceAtLastRollRef.current !== 0
     ) {
       const sinceLastRoll =
         distanceTravelledRef
@@ -689,7 +890,9 @@ export default function GameMap3D() {
     */
 
     const spawnRoll =
-      Math.random();
+      forceSpawn
+        ? 0
+        : Math.random();
 
 
     console.log(
@@ -716,14 +919,22 @@ export default function GameMap3D() {
 
 
     /*
-      ESCOLHE A ESPÉCIE.
+      ESCOLHE O TIPO DE ENCONTRO.
     */
 
-    const animal =
-      escolherAnimal(
-        lastAnimalId,
-        speciesCooldowns
+    const typeRoll =
+      Math.random() *
+      (
+        ANIMAL_SPAWN_WEIGHT +
+        TRASH_SPAWN_WEIGHT
       );
+
+
+    const encounterType =
+      typeRoll <
+        ANIMAL_SPAWN_WEIGHT
+        ? 'animal'
+        : 'trash';
 
 
     /*
@@ -745,45 +956,95 @@ export default function GameMap3D() {
       360;
 
 
+    const currentPosition =
+      latestPositionRef.current;
+
+
     const position =
       calcularDestino(
-        latitude,
-        longitude,
+        currentPosition.latitude,
+        currentPosition.longitude,
         distance,
         bearing
       );
 
 
-    const newEncounter = {
-      animalId:
+    if (
+      encounterType ===
+      'trash'
+    ) {
+      const trash =
+        escolherResiduo();
+
+
+      const instance = {
+        instanceId:
+          `${trash.id}-${Date.now()}`,
+
+        trashId:
+          trash.id,
+
+        position,
+
+        createdAt:
+          Date.now(),
+      };
+
+
+      console.log(
+        'NOVO RESÍDUO:',
+        trash.name
+      );
+
+
+      setTrashOnMap([
+        instance,
+      ]);
+
+
+      mapRef.current
+        ?.triggerRepaint();
+    }
+
+    else {
+      const animal =
+        escolherAnimal(
+          lastAnimalId,
+          speciesCooldowns
+        );
+
+
+      const newEncounter = {
+        animalId:
+          animal.id,
+
+        position,
+
+        createdAt:
+          Date.now(),
+      };
+
+
+      console.log(
+        'NOVO ENCONTRO:',
+        animal.name
+      );
+
+
+      startEncounter(
         animal.id,
-
-      position,
-
-      createdAt:
-        Date.now(),
-    };
+        position
+      );
 
 
-    console.log(
-      'NOVO ENCONTRO:',
-      animal.name
-    );
+      activeEncounterRef.current =
+        newEncounter;
 
 
-    startEncounter(
-      animal.id,
-      position
-    );
-
-
-    activeEncounterRef.current =
-      newEncounter;
-
-
-    updateEncounterTransform(
-      newEncounter
-    );
+      updateEncounterTransform(
+        newEncounter
+      );
+    }
 
 
     /*
@@ -813,12 +1074,11 @@ export default function GameMap3D() {
   */
 
   useEffect(() => {
-    if (
-      mapRef.current
-    ) {
-      return;
-    }
-
+  if (
+    mapRef.current
+  ) {
+    return;
+  }
 
     const map =
       new maplibregl.Map({
@@ -842,6 +1102,8 @@ export default function GameMap3D() {
 
         bearing: 0,
 
+        attributionControl: false,
+
         canvasContextAttributes: {
           antialias: true,
         },
@@ -850,6 +1112,175 @@ export default function GameMap3D() {
 
     mapRef.current =
       map;
+
+
+    /*
+      =========================================================
+      CLIQUE NOS RESÍDUOS
+      =========================================================
+    */
+
+    function handleTrashClick(
+      event
+    ) {
+      const currentTrash =
+        useTrashStore
+          .getState()
+          .trashOnMap;
+
+
+      if (
+        currentTrash.length === 0
+      ) {
+        return;
+      }
+
+
+      let closest =
+        null;
+
+      let closestScreenDistance =
+        Infinity;
+
+
+      currentTrash.forEach(
+        (instance) => {
+          const point =
+            map.project(
+              instance.position
+            );
+
+
+          const dx =
+            event.point.x -
+            point.x;
+
+          const dy =
+            event.point.y -
+            point.y;
+
+
+          const screenDistance =
+            Math.sqrt(
+              dx * dx +
+              dy * dy
+            );
+
+
+          if (
+            screenDistance <= 60 &&
+            screenDistance <
+              closestScreenDistance
+          ) {
+            closest =
+              instance;
+
+            closestScreenDistance =
+              screenDistance;
+          }
+        }
+      );
+
+
+      if (!closest) {
+        return;
+      }
+
+
+      const currentPosition =
+        latestPositionRef.current;
+
+
+      const playerDistance =
+        calcularDistancia(
+          currentPosition.latitude,
+          currentPosition.longitude,
+          closest.position[1],
+          closest.position[0]
+        );
+
+
+      /*
+        Para a demo deixamos um raio
+        confortável para tocar no resíduo.
+      */
+
+      if (
+        playerDistance > 50
+      ) {
+        return;
+      }
+
+
+      const trashData =
+        trashItems.find(
+          (item) =>
+            item.id ===
+            closest.trashId
+        );
+
+
+      if (!trashData) {
+        return;
+      }
+
+
+      window.dispatchEvent(
+        new CustomEvent(
+          'rebrota-trash-selected',
+          {
+            detail: {
+              ...closest,
+              ...trashData,
+            },
+          }
+        )
+      );
+    }
+
+
+    map.on(
+      'click',
+      handleTrashClick
+    );
+
+
+    map.addControl(
+      new maplibregl.AttributionControl({
+        compact: true,
+      }),
+      'bottom-right'
+    );
+
+
+    /*
+      O MapLibre 5.24 inicia
+      a atribuição compacta aberta.
+
+      Forçamos o estado inicial
+      fechado depois que o DOM
+      do controle é criado.
+    */
+
+    requestAnimationFrame(() => {
+      const attribution =
+        map
+          .getContainer()
+          .querySelector(
+            'details.maplibregl-ctrl-attrib'
+          );
+
+
+      if (attribution) {
+        attribution.removeAttribute(
+          'open'
+        );
+
+        attribution.classList.remove(
+          'maplibregl-compact-show'
+        );
+      }
+    });
 
 
     /*
@@ -1412,16 +1843,16 @@ export default function GameMap3D() {
                       Precisa estar perto.
                     */
 
+                    const currentPosition =
+                      latestPositionRef.current;
+
                     const distance =
                       calcularDistancia(
-                        latitude,
-                        longitude,
+                        currentPosition.latitude,
+                        currentPosition.longitude,
 
-                        encounter
-                          .position[1],
-
-                        encounter
-                          .position[0]
+                        encounter.position[1],
+                        encounter.position[0]
                       );
 
 
@@ -1687,10 +2118,13 @@ export default function GameMap3D() {
                   dentro do raio.
                 */
 
+                const currentPosition =
+                  latestPositionRef.current;
+
                 const playerDistance =
                   calcularDistancia(
-                    latitude,
-                    longitude,
+                    currentPosition.latitude,
+                    currentPosition.longitude,
 
                     state.position[1],
                     state.position[0]
@@ -1796,8 +2230,273 @@ export default function GameMap3D() {
             map.addLayer(
               layer
             );
+
           }
         );
+
+        trashItems.forEach(
+          (trash) => {
+
+            const mercator =
+              maplibregl
+                .MercatorCoordinate
+                .fromLngLat(
+                  [
+                    longitude,
+                    latitude,
+                  ],
+                  0
+                );
+
+
+            const transform = {
+              translateX:
+                mercator.x,
+
+              translateY:
+                mercator.y,
+
+              translateZ:
+                mercator.z,
+
+              rotateX:
+                Math.PI / 2,
+
+              rotateY:
+                0,
+
+              rotateZ:
+                0,
+
+              scale:
+                mercator
+                  .meterInMercatorCoordinateUnits() *
+                  (
+                    trash.mapScale ??
+                    1
+                  ),
+            };
+
+
+            trashLayersRef.current[
+              trash.id
+            ] = {
+              transform,
+              instance: null,
+            };
+
+
+            const layer = {
+              id:
+                `trash-${trash.id}`,
+
+              type:
+                'custom',
+
+              renderingMode:
+                '3d',
+
+
+              onAdd(
+                map,
+                gl
+              ) {
+                this.camera =
+                  new THREE.Camera();
+
+
+                this.scene =
+                  new THREE.Scene();
+
+
+                this.model =
+                  null;
+
+
+                this.raycaster =
+                  new THREE.Raycaster();
+
+
+                this.scene.add(
+                  new THREE
+                    .HemisphereLight(
+                      0xffffff,
+                      0x444444,
+                      2.5
+                    )
+                );
+
+
+                const directional =
+                  new THREE
+                    .DirectionalLight(
+                      0xffffff,
+                      2
+                    );
+
+
+                directional
+                  .position
+                  .set(
+                    0,
+                    -70,
+                    100
+                  );
+
+
+                this.scene.add(
+                  directional
+                );
+
+
+                new GLTFLoader()
+                  .load(
+                    `${import.meta.env.BASE_URL}models/${trash.model}`,
+
+                    (gltf) => {
+                      this.model =
+                        gltf.scene;
+
+
+                      this.scene.add(
+                        this.model
+                      );
+
+
+                      map.triggerRepaint();
+                    }
+                  );
+
+
+                this.renderer =
+                  new THREE
+                    .WebGLRenderer({
+                      canvas:
+                        map.getCanvas(),
+
+                      context:
+                        gl,
+
+                      antialias:
+                        true,
+                    });
+
+
+                this.renderer
+                  .autoClear =
+                  false;
+              },
+
+
+              render(
+                gl,
+                args
+              ) {
+                const instance =
+                  useTrashStore
+                    .getState()
+                    .trashOnMap
+                    .find(
+                      (item) =>
+                        item.trashId ===
+                        trash.id
+                    );
+
+
+                if (!instance) {
+                  return;
+                }
+
+
+                const mercator =
+                  maplibregl
+                    .MercatorCoordinate
+                    .fromLngLat(
+                      instance.position,
+                      0
+                    );
+
+
+                const scale =
+                  mercator
+                    .meterInMercatorCoordinateUnits() *
+                  (
+                    trash.mapScale ??
+                    1
+                  );
+
+
+                const m =
+                  new THREE
+                    .Matrix4()
+                    .fromArray(
+                      args
+                        .defaultProjectionData
+                        .mainMatrix
+                    );
+
+
+                const l =
+                  new THREE
+                    .Matrix4()
+
+                    .makeTranslation(
+                      mercator.x,
+                      mercator.y,
+                      mercator.z
+                    )
+
+                    .scale(
+                      new THREE
+                        .Vector3(
+                          scale,
+                          -scale,
+                          scale
+                        )
+                    )
+
+                    .multiply(
+                      new THREE
+                        .Matrix4()
+                        .makeRotationX(
+                          Math.PI / 2
+                        )
+                    );
+
+
+                this.camera
+                  .projectionMatrix =
+                  m.multiply(l);
+
+
+                this.renderer
+                  .resetState();
+
+
+                this.renderer
+                  .render(
+                    this.scene,
+                    this.camera
+                  );
+
+
+                map.triggerRepaint();
+              },
+
+
+              onRemove() {
+                this.renderer
+                  ?.dispose();
+              },
+            };
+
+
+            map.addLayer(
+              layer
+            );
+          }
+        );
+
 
 
         /*
@@ -1825,6 +2524,12 @@ export default function GameMap3D() {
         ?.remove();
 
 
+      map.off(
+        'click',
+        handleTrashClick
+      );
+
+
       map.remove();
 
 
@@ -1835,6 +2540,11 @@ export default function GameMap3D() {
       encounterLayersRef
         .current =
         {};
+
+
+      trashLayersRef
+        .current =
+        {};
     };
 
   }, [
@@ -1842,6 +2552,44 @@ export default function GameMap3D() {
     markAnimalFound,
   ]);
 
+  useEffect(() => {
+    if (!hasRealPosition) {
+      return;
+    }
+
+    /*
+      Se já existe um encontro,
+      não inicia contador.
+    */
+    if (
+      activeEncounter ||
+      trashOnMap.length > 0
+    ) {
+      return;
+    }
+
+    console.log(
+      'Contagem para spawn parado iniciada.'
+    );
+
+    const timer =
+      setTimeout(() => {
+        console.log(
+          'Tentando spawn parado.'
+        );
+
+        tentarSpawn(true);
+
+      }, IDLE_SPAWN_INTERVAL);
+
+    return () =>
+      clearTimeout(timer);
+
+  }, [
+    hasRealPosition,
+    activeEncounter,
+    trashOnMap,
+  ]);
 
   /*
     =========================================================
@@ -1977,6 +2725,12 @@ export default function GameMap3D() {
           .current +=
           movement;
 
+        useProgressStore
+          .getState()
+          .addWalkDistance(
+            movement
+          );
+
 
         console.log(
           'Distância:',
@@ -1994,6 +2748,58 @@ export default function GameMap3D() {
       latitude,
       longitude,
     };
+
+
+    /*
+      Se há resíduo ativo,
+      verifica se o jogador
+      se afastou demais.
+    */
+
+    const activeTrash =
+      useTrashStore
+        .getState()
+        .trashOnMap[0];
+
+
+    if (activeTrash) {
+      const trashDistance =
+        calcularDistancia(
+          latitude,
+          longitude,
+
+          activeTrash.position[1],
+          activeTrash.position[0]
+        );
+
+
+      if (
+        trashDistance >
+        DESPAWN_RADIUS
+      ) {
+        console.log(
+          'Resíduo perdido.'
+        );
+
+
+        setTrashOnMap([]);
+
+        expireEncounter();
+
+        distanceTravelledRef.current =
+          0;
+
+        distanceAtLastRollRef.current =
+          0;
+      }
+
+
+      mapRef.current
+        ?.triggerRepaint();
+
+
+      return;
+    }
 
 
     /*
@@ -2029,9 +2835,7 @@ export default function GameMap3D() {
         );
 
 
-        endEncounter(
-          encounter.animalId
-        );
+        expireEncounter();
 
 
         activeEncounterRef
@@ -2078,6 +2882,8 @@ export default function GameMap3D() {
     longitude,
     hasRealPosition,
     endEncounter,
+    expireEncounter,
+    setTrashOnMap,
   ]);
 
 

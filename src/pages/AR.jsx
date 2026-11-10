@@ -53,6 +53,13 @@ export default function AR() {
         state.registerDiscovery
     );
 
+  
+  const endEncounter =
+    useEncounterStore(
+      (state) =>
+        state.endEncounter
+    );
+
 
   /*
     ===================================
@@ -106,12 +113,7 @@ export default function AR() {
     navigate(`/guide?animal=${encounter.id}`);
   }
 
-  const endEncounter =
-  useEncounterStore(
-    (state) =>
-      state.endEncounter
-  );
-
+  
   return (
     <main
       className="ar-page"
@@ -146,10 +148,6 @@ export default function AR() {
 
         src={
           `${import.meta.env.BASE_URL}models/${encounter.model}`
-        }
-
-        ios-src={
-          `${import.meta.env.BASE_URL}models/${encounter.arModel}`
         }
 
         alt={

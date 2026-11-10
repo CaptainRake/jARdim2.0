@@ -1,21 +1,65 @@
 import { useNavigate } from 'react-router-dom';
+
 import { backpacks } from '../../data/backpacks';
+
 import { useOnboardingStore } from '../../stores/onboardingStore';
 
+import { useProgressStore } from '../../stores/progressStore';
+
+
 export default function GameHUD() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  // Depois isso vem do playerStore
-  const username = 'username';
-  const level = 1;
+  const playerName =
+    useOnboardingStore(
+      (state) =>
+        state.playerName
+    );
 
-  const currentXP = 35;
-  const maxXP = 100;
+  const username =
+    playerName ||
+    'Explorador';
 
-  const xpPercent = Math.min(
-    (currentXP / maxXP) * 100,
-    100
-  );
+
+  const currentXP =
+    useProgressStore(
+      (state) =>
+        state.xp
+    );
+
+
+  const level =
+    Math.floor(
+      currentXP / 100
+    ) + 1;
+
+
+  const xpInLevel =
+    currentXP % 100;
+
+
+  const maxXP =
+    100;
+
+
+  const xpPercent =
+    Math.min(
+      (
+        xpInLevel /
+        maxXP
+      ) *
+        100,
+
+      100
+    );
+
+  const missionsUnread =
+    useProgressStore(
+      (state) =>
+        state.missionsUnread
+    );
+
 
   const selectedBackpack =
     useOnboardingStore(
@@ -23,11 +67,14 @@ export default function GameHUD() {
         state.selectedBackpack
     );
 
+
   const backpack =
     backpacks.find(
       (item) =>
-        item.id === selectedBackpack
+        item.id ===
+        selectedBackpack
     ) ?? backpacks[0];
+
 
   return (
     <div className="game-hud">
@@ -36,10 +83,15 @@ export default function GameHUD() {
 
       <button
         className="hud-settings"
+
         data-tutorial="settings"
+
         aria-label="Configurações"
+
         onClick={() =>
-          console.log('Configurações')
+          console.log(
+            'Configurações'
+          )
         }
       >
         <img
@@ -53,12 +105,18 @@ export default function GameHUD() {
 
       <button
         className="hud-profile"
+
         data-tutorial="profile"
+
         onClick={() =>
-          navigate('/profile')
+          navigate(
+            '/profile'
+          )
         }
+
         aria-label="Perfil"
       >
+
         <div className="hud-profile-top">
 
           <img
@@ -67,24 +125,32 @@ export default function GameHUD() {
             alt=""
           />
 
+
           <div className="hud-level">
             {level}
           </div>
 
         </div>
 
+
         <div className="hud-username">
           {username}
         </div>
 
+
         <div className="hud-xp-bar">
+
           <div
             className="hud-xp-fill"
+
             style={{
-              width: `${xpPercent}%`,
+              width:
+                `${xpPercent}%`,
             }}
           />
+
         </div>
+
       </button>
 
 
@@ -92,37 +158,61 @@ export default function GameHUD() {
 
       <div className="hud-actions">
 
+
         {/* BASE / EXPEDIÇÃO */}
 
         <button
           className="hud-action-button"
+
           data-tutorial="expedition"
+
           aria-label="Loja de Campo"
+
           onClick={() =>
-            navigate('/shop')
+            navigate(
+              '/shop'
+            )
           }
         >
+
           <img
             src={`${import.meta.env.BASE_URL}ui/hud/Expedition_Tent.svg`}
             alt=""
           />
+
         </button>
 
 
         {/* MISSÕES */}
 
         <button
-          className="hud-action-button"
+          className="hud-action-button hud-missions-button"
+
           data-tutorial="missions"
+
           aria-label="Missões"
+
           onClick={() =>
-            navigate('/challenges')
+            navigate(
+              '/challenges'
+            )
           }
         >
+
           <img
             src={`${import.meta.env.BASE_URL}ui/hud/Missions_Binocular.svg`}
             alt=""
           />
+
+
+          {missionsUnread && (
+            <span
+              className="hud-notification-dot"
+
+              aria-label="Novas missões"
+            />
+          )}
+
         </button>
 
 
@@ -130,18 +220,28 @@ export default function GameHUD() {
 
         <button
           className="hud-action-button hud-backpack"
+
           data-tutorial="backpack"
+
           aria-label="Mochila"
+
           onClick={() =>
-            navigate('/backpack')
+            navigate(
+              '/backpack'
+            )
           }
         >
+
           <img
             src={
               `${import.meta.env.BASE_URL}ui/hud/${backpack.icon}`
             }
-            alt={`Mochila ${backpack.name}`}
+
+            alt={
+              `Mochila ${backpack.name}`
+            }
           />
+
         </button>
 
       </div>
